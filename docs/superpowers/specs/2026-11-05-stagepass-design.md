@@ -282,6 +282,20 @@ organizer approved/rejected, event reminder (24 h before). Written to `email_out
 and sent by a scheduled worker with retries — so an email failure never breaks a booking. In-app notifications in the
 `notifications` table with a bell menu.
 
+**Email channels (added 2026-11-05, user decision):**
+- *Auth emails* — sign-up confirmation, **6-digit email OTP sign-in**, password reset — are sent by Supabase Auth
+  through Resend custom SMTP (`smtp.resend.com:465`, user `resend`, password = a Resend API key). Branded templates
+  live in `docs/email-templates/` and are pasted into Supabase → Authentication → Emails. The magic-link template
+  shows `{{ .Token }}` so it works as an OTP code.
+- *App emails* — welcome on first account creation now; booking confirmed, refunds, reminders, approvals later — are
+  sent by the API through the Resend HTTP API (`RESEND_API_KEY`, `RESEND_FROM`) via the `email_outbox` worker:
+  polled every 15 s, `FOR UPDATE SKIP LOCKED`, Resend `Idempotency-Key` = outbox id, retry with exponential backoff
+  (1, 2, 4 … capped 60 min) up to 8 attempts; 4xx answers fail immediately. With no API key configured, emails stay
+  queued (logged) instead of failing.
+- Login page offers **Email code** (default) and **Password**. Email code creates the account if it does not exist.
+- Development uses `@stagepass.test` identities created as auto-confirmed users in Supabase; real inboxes only when the
+  user supplies one. Resend without a verified domain sends from `onboarding@resend.dev` to the account owner only.
+
 ## 9. Pages
 
 **Public:** Home, Explore, Event details, Login, Register, Forgot password, Reset password, Organizer public profile,

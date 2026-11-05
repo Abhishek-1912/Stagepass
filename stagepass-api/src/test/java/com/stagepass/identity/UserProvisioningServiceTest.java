@@ -25,6 +25,32 @@ class UserProvisioningServiceTest extends PostgresIntegrationTest {
     JdbcTemplate jdbc;
 
     @Test
+    void newUserGetsOneWelcomeEmailQueued() {
+        UUID id = UUID.randomUUID();
+        String email = "welcome-" + id + "@test.in";
+
+        provisioning.provision(id, email, "Meera", null);
+        provisioning.provision(id, email, "Meera", null);
+
+        assertThat(jdbc.queryForObject(
+                "select count(*) from email_outbox where to_address = ? and template = 'WELCOME'", Integer.class, email))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "select payload->>'name' from email_outbox where to_address = ?", String.class, email))
+                .isEqualTo("Meera");
+    }
+
+    @Test
+    void userWithoutEmailGetsNoWelcomeEmail() {
+        UUID id = UUID.randomUUID();
+        int before = jdbc.queryForObject("select count(*) from email_outbox", Integer.class);
+
+        provisioning.provision(id, null, null, null);
+
+        assertThat(jdbc.queryForObject("select count(*) from email_outbox", Integer.class)).isEqualTo(before);
+    }
+
+    @Test
     void concurrentFirstRequestsCreateOneUser() throws Exception {
         UUID id = UUID.randomUUID();
         String email = "race-" + id + "@test.in";
@@ -46,6 +72,8 @@ class UserProvisioningServiceTest extends PostgresIntegrationTest {
 
         assertThat(jdbc.queryForObject("select count(*) from users where id = ?", Integer.class, id)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from user_roles where user_id = ?", Integer.class, id))
+                .isEqualTo(1);
+        assertThat(jdbc.queryForObject("select count(*) from email_outbox where to_address = ?", Integer.class, email))
                 .isEqualTo(1);
     }
 }

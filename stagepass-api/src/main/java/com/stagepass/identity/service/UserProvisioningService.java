@@ -7,6 +7,8 @@ import com.stagepass.common.error.ErrorCode;
 import com.stagepass.identity.domain.RoleName;
 import com.stagepass.identity.domain.User;
 import com.stagepass.identity.repository.UserRepository;
+import com.stagepass.notification.service.EmailOutbox;
+import com.stagepass.notification.service.EmailTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,10 +25,13 @@ public class UserProvisioningService {
     private final UserRepository users;
     private final AuditLogService audit;
     private final Set<String> bootstrapAdmins;
+    private final EmailOutbox outbox;
 
-    public UserProvisioningService(UserRepository users, AuditLogService audit, StagepassProperties props) {
+    public UserProvisioningService(UserRepository users, AuditLogService audit, StagepassProperties props,
+            EmailOutbox outbox) {
         this.users = users;
         this.audit = audit;
+        this.outbox = outbox;
         this.bootstrapAdmins = props.bootstrap().adminEmails().stream()
                 .map(e -> e.trim().toLowerCase(Locale.ROOT))
                 .filter(e -> !e.isEmpty())
@@ -38,6 +43,9 @@ public class UserProvisioningService {
         int created = users.insertIfAbsent(id, email, fullName, avatarUrl);
         if (created == 1) {
             users.grantRole(id, RoleName.ATTENDEE.name());
+            if (email != null) {
+                outbox.enqueue(email, EmailTemplate.WELCOME, fullName == null ? Map.of() : Map.of("name", fullName));
+            }
             if (email != null && bootstrapAdmins.contains(email.toLowerCase(Locale.ROOT))
                     && users.grantRole(id, RoleName.ADMIN.name()) == 1) {
                 audit.record(null, "ROLE_GRANTED", "user", id.toString(), null,
