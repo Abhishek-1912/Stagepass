@@ -2,7 +2,14 @@ package com.stagepass.common.security;
 
 import com.stagepass.common.config.StagepassProperties;
 import com.stagepass.common.config.SupabaseProperties;
+import com.stagepass.common.error.ErrorCode;
 import com.stagepass.common.error.ProblemAccessDeniedHandler;
+import jakarta.servlet.DispatcherType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.web.client.RestTemplate;
 import com.stagepass.common.error.ProblemAuthEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +47,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint).accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        // Let container error dispatches through so failures surface as 5xx, not a fake 401.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/public/**", "/e/**").permitAll()
@@ -54,9 +63,34 @@ public class SecurityConfig {
 
     @Bean
     JwtDecoder jwtDecoder(SupabaseProperties props) {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(props.jwksUri()).build();
+        return supabaseJwtDecoder(props);
+    }
+
+    /**
+     * Decoder for Supabase access tokens: keys from the project JWKS (ES256 is Supabase's default signing algorithm,
+     * RS256 is allowed too), 3-second HTTP timeouts, and JWKS outages reported as 503 rather than "bad token" —
+     * otherwise a Supabase blip would look like an expired session and sign every user out.
+     */
+    public static JwtDecoder supabaseJwtDecoder(SupabaseProperties props) {
+        SimpleClientHttpRequestFactory http = new SimpleClientHttpRequestFactory();
+        http.setConnectTimeout(Duration.ofSeconds(3));
+        http.setReadTimeout(Duration.ofSeconds(3));
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(props.jwksUri())
+                .jwsAlgorithm(SignatureAlgorithm.ES256)
+                .jwsAlgorithm(SignatureAlgorithm.RS256)
+                .restOperations(new RestTemplate(http))
+                .build();
         decoder.setJwtValidator(supabaseValidator(props));
-        return decoder;
+        return token -> {
+            try {
+                return decoder.decode(token);
+            } catch (BadJwtException e) {
+                throw e;
+            } catch (JwtException e) {
+                throw new StagepassAuthenticationException(ErrorCode.SERVICE_UNAVAILABLE,
+                        "Sign-in is temporarily unavailable. Please try again in a moment.");
+            }
+        };
     }
 
     /** Issuer, expiry/not-before and audience checks shared by production and test decoders. */

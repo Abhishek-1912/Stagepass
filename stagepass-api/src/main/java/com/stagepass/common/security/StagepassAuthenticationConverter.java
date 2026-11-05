@@ -7,6 +7,7 @@ import com.stagepass.identity.service.RoleLookupService;
 import com.stagepass.identity.service.RoleLookupService.AccountSnapshot;
 import com.stagepass.identity.service.UserProvisioningService;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -33,6 +34,16 @@ public class StagepassAuthenticationConverter implements Converter<Jwt, Abstract
 
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
+        try {
+            return resolve(jwt);
+        } catch (DataAccessException e) {
+            // A database outage must not look like an invalid session (the SPA would sign the user out).
+            throw new StagepassAuthenticationException(ErrorCode.SERVICE_UNAVAILABLE,
+                    "Stagepass is temporarily unavailable. Please try again in a moment.");
+        }
+    }
+
+    private AbstractAuthenticationToken resolve(Jwt jwt) {
         UUID userId = parseSubject(jwt);
         String email = jwt.getClaimAsString("email");
         AccountSnapshot account = roleLookup.snapshot(userId).orElseGet(() -> provision(userId, email, jwt));

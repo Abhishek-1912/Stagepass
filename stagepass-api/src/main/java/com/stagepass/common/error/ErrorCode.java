@@ -14,6 +14,7 @@ public enum ErrorCode {
     ACCOUNT_CONFLICT(HttpStatus.CONFLICT),
     SOLD_OUT(HttpStatus.CONFLICT),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS),
+    SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     INTERNAL(HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final HttpStatus status;
