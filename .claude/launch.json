@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stagepass-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "stagepass-web", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "stagepass-api",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd stagepass-api && ./mvnw -q spring-boot:run"],
+      "port": 8080
+    }
+  ]
+}

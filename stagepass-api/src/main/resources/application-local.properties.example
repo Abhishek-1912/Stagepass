@@ -1,0 +1,13 @@
+# Copy to application-local.properties (gitignored) and fill in real values.
+DB_URL=jdbc:postgresql://aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+DB_USERNAME=postgres.<project-ref>
+DB_PASSWORD=<db-password>
+SUPABASE_URL=https://<project-ref>.supabase.co
+BOOTSTRAP_ADMIN_EMAILS=you@example.com
+QR_SECRET=<random string, 32+ chars>
+PAYOUT_ENCRYPTION_KEY=<base64-encoded 32-byte key>
+
+# Resend (https://resend.com/api-keys) - paste your key after the = sign
+RESEND_API_KEY=
+# Sender address: must be on a domain verified in Resend, or onboarding@resend.dev for testing
+RESEND_FROM=Stagepass <onboarding@resend.dev>
