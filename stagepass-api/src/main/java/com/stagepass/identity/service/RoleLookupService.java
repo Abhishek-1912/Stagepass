@@ -1,0 +1,75 @@
+package com.stagepass.identity.service;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.stagepass.identity.domain.RoleName;
+import com.stagepass.identity.domain.UserStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Roles and status per user, cached for 60 seconds so authorization does not hit the database on every request.
+ * Call {@link #evict(UUID)} after changing a user's roles or status.
+ */
+@Service
+public class RoleLookupService {
+
+    public record AccountSnapshot(UserStatus status, Set<RoleName> roles) {
+    }
+
+    private final JdbcTemplate jdbc;
+    private final Cache<UUID, AccountSnapshot> cache = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofSeconds(60))
+            .maximumSize(50_000)
+            .build();
+
+    public RoleLookupService(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    /** Empty if the user has never been provisioned. */
+    public Optional<AccountSnapshot> snapshot(UUID userId) {
+        AccountSnapshot cached = cache.getIfPresent(userId);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        Optional<AccountSnapshot> loaded = load(userId);
+        loaded.ifPresent(s -> cache.put(userId, s));
+        return loaded;
+    }
+
+    public Set<RoleName> rolesFor(UUID userId) {
+        return snapshot(userId).map(AccountSnapshot::roles).orElse(Set.of());
+    }
+
+    public void evict(UUID userId) {
+        cache.invalidate(userId);
+    }
+
+    private Optional<AccountSnapshot> load(UUID userId) {
+        var rows = jdbc.queryForList("""
+                select u.status, r.name as role
+                from users u
+                left join user_roles ur on ur.user_id = u.id
+                left join roles r on r.id = ur.role_id
+                where u.id = ?
+                """, userId);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        UserStatus status = UserStatus.valueOf((String) rows.get(0).get("status"));
+        Set<RoleName> roles = EnumSet.noneOf(RoleName.class);
+        rows.forEach(r -> {
+            if (r.get("role") != null) {
+                roles.add(RoleName.valueOf((String) r.get("role")));
+            }
+        });
+        return Optional.of(new AccountSnapshot(status, Set.copyOf(roles)));
+    }
+}

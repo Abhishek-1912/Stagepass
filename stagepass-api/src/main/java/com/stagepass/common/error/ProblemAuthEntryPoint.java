@@ -1,5 +1,6 @@
 package com.stagepass.common.error;
 
+import com.stagepass.common.security.StagepassAuthenticationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.AuthenticationException;
@@ -8,7 +9,10 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 
-/** 401 responses for missing or invalid tokens, in Problem Details form. */
+/**
+ * Answers authentication failures in Problem Details form: 401 for missing/invalid tokens, or the specific
+ * code (e.g. ACCOUNT_SUSPENDED, ACCOUNT_CONFLICT) raised while resolving the account.
+ */
 @Component
 public class ProblemAuthEntryPoint implements AuthenticationEntryPoint {
 
@@ -21,6 +25,10 @@ public class ProblemAuthEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException authException) throws IOException {
+        if (authException instanceof StagepassAuthenticationException sae) {
+            writer.write(request, response, sae.code(), sae.getMessage());
+            return;
+        }
         response.setHeader("WWW-Authenticate", "Bearer");
         writer.write(request, response, ErrorCode.UNAUTHENTICATED, "Authentication is required");
     }
