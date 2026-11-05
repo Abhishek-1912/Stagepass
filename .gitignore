@@ -1,0 +1,10 @@
+target/
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.idea/
+.vscode/
+stagepass-api/src/main/resources/application-local.properties
+.superpowers/
