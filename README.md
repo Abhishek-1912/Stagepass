@@ -69,16 +69,17 @@ Open http://localhost:5173. The email listed in `BOOTSTRAP_ADMIN_EMAILS` becomes
 
 | Channel | Emails | Configured in |
 |---|---|---|
-| Supabase Auth → Resend SMTP | sign-in code (OTP), confirm sign-up, password reset | Supabase → Authentication → Emails (SMTP + templates from ) |
-| Stagepass API → Resend API | welcome, booking confirmed, refunds, reminders… | ,  |
+| Supabase Auth → Resend SMTP | sign-in code (OTP), confirm sign-up, password reset | Supabase → Authentication → Emails (SMTP + templates from `docs/email-templates/`) |
+| Stagepass API → Resend API | welcome, booking confirmed, refunds, reminders… | `RESEND_API_KEY`, `RESEND_FROM` |
 
-App emails are queued in  and sent by a background worker every 15 s with retries. Without
- they stay queued. Until a domain is verified in Resend, send from (Resend then only delivers to the Resend account owner's inbox).
+App emails are queued in `email_outbox` and sent by a background worker every 15 s with retries. Without
+`RESEND_API_KEY` they stay queued. Until a domain is verified in Resend, send from `onboarding@resend.dev`
+(Resend then only delivers to the Resend account owner's inbox).
 
 ## Test accounts
 
 Create these in Supabase → Authentication → Users → Add user, with **Auto Confirm User** ticked:
- (becomes admin via ), , .
+`admin@stagepass.test` (becomes admin via `BOOTSTRAP_ADMIN_EMAILS`), `organizer@stagepass.test`, `attendee@stagepass.test`.
 Use a real inbox only when testing email delivery.
 
 ## Tests
