@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { OtpLoginForm } from './OtpLoginForm'
 import { supabase } from '@/lib/supabase'
 import { AuthCard } from './AuthCard'
 import { useAuth } from './AuthProvider'
@@ -55,6 +57,15 @@ export function LoginPage() {
       <div className="space-y-5">
         <GoogleButton next={next} />
         <OrDivider />
+        <Tabs defaultValue="code" className="gap-5">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="code">Email code</TabsTrigger>
+            <TabsTrigger value="password">Password</TabsTrigger>
+          </TabsList>
+          <TabsContent value="code">
+            <OtpLoginForm onSignedIn={() => navigate(next, { replace: true })} />
+          </TabsContent>
+          <TabsContent value="password">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <FormField label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register('email')} />
           <div className="space-y-1.5">
@@ -80,6 +91,8 @@ export function LoginPage() {
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
+          </TabsContent>
+        </Tabs>
       </div>
     </AuthCard>
   )

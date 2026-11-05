@@ -65,6 +65,22 @@ cd stagepass-web && npm install && npm run dev
 
 Open http://localhost:5173. The email listed in `BOOTSTRAP_ADMIN_EMAILS` becomes an admin on first sign-in.
 
+## Email
+
+| Channel | Emails | Configured in |
+|---|---|---|
+| Supabase Auth → Resend SMTP | sign-in code (OTP), confirm sign-up, password reset | Supabase → Authentication → Emails (SMTP + templates from ) |
+| Stagepass API → Resend API | welcome, booking confirmed, refunds, reminders… | ,  |
+
+App emails are queued in  and sent by a background worker every 15 s with retries. Without
+ they stay queued. Until a domain is verified in Resend, send from (Resend then only delivers to the Resend account owner's inbox).
+
+## Test accounts
+
+Create these in Supabase → Authentication → Users → Add user, with **Auto Confirm User** ticked:
+ (becomes admin via ), , .
+Use a real inbox only when testing email delivery.
+
 ## Tests
 
 ```bash
@@ -90,6 +106,8 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 | `BOOTSTRAP_ADMIN_EMAILS` | no | Comma-separated emails granted `ADMIN` on first sign-in |
 | `QR_SECRET` | yes | Random secret (32+ chars) used to sign ticket QR codes |
 | `PAYOUT_ENCRYPTION_KEY` | yes | Base64 32-byte key encrypting organizer bank details |
+| `RESEND_API_KEY` | for email | Resend API key (sending access) for app emails |
+| `RESEND_FROM` | no | Sender, e.g. `Stagepass <no-reply@yourdomain>`; default `onboarding@resend.dev` |
 | `SPRING_PROFILES_ACTIVE` | prod | `prod` on Render (JSON logs) |
 
 ### Web (`stagepass-web`) — all public, bundled into the browser

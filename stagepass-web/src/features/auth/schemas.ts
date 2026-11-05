@@ -29,6 +29,14 @@ export const resetSchema = z
     message: 'Passwords don’t match',
   })
 
+export const otpCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Enter the 6-digit code from your email'),
+})
+
+export type OtpCodeValues = z.infer<typeof otpCodeSchema>
 export type LoginValues = z.infer<typeof loginSchema>
 export type RegisterValues = z.infer<typeof registerSchema>
 export type ForgotValues = z.infer<typeof forgotSchema>
