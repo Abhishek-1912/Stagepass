@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -35,9 +36,11 @@ public class EventLifecycleService {
     private final EventRepository repository;
     private final AuditLogService audit;
     private final EmailOutbox outbox;
+    private final List<EventCancellationHandler> cancellationHandlers;
 
     public EventLifecycleService(EventService events, EventRepository repository, AuditLogService audit,
-            EmailOutbox outbox) {
+            EmailOutbox outbox, List<EventCancellationHandler> cancellationHandlers) {
+        this.cancellationHandlers = cancellationHandlers;
         this.events = events;
         this.repository = repository;
         this.audit = audit;
@@ -71,13 +74,10 @@ public class EventLifecycleService {
         e.setFeatured(false);
         audit.record(actorId, "EVENT_CANCELLED", "event", eventId.toString(), Map.of("status", before.name()),
                 Map.of("status", EventStatus.CANCELLED.name(), "reason", reason));
-        onCancelled(e);
+        if (before == EventStatus.PUBLISHED) {
+            cancellationHandlers.forEach(h -> h.onEventCancelled(eventId, actorId));
+        }
         return EventResponse.from(e);
-    }
-
-    /** Hook for Plan 4: refund every confirmed booking and notify ticket holders. */
-    protected void onCancelled(Event event) {
-        // Nothing to refund until bookings exist.
     }
 
     @Transactional(readOnly = true)

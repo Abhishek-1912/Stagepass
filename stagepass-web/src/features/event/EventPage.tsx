@@ -13,8 +13,8 @@ import { cloudinary } from '@/lib/images'
 import { formatPaise } from '@/lib/money'
 import { downloadIcs } from './calendar'
 import { ShareButton } from './ShareButton'
-import { bookLabel } from './bookLabel'
-import { TicketList } from './TicketList'
+import { TicketPicker } from '@/features/checkout/TicketPicker'
+import { bookLabel, canBook } from './bookLabel'
 import { VenueMap } from './VenueMap'
 
 function refundText(e: PublicEventDetail): string {
@@ -176,21 +176,25 @@ export function EventPage() {
         <aside className="hidden lg:block">
           <div className="sticky top-24 space-y-2 rounded-3xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
             <h2 className="font-sans text-lg font-semibold tracking-normal">Tickets</h2>
-            <TicketList event={event} />
+            <TicketPicker event={event} />
           </div>
         </aside>
       </div>
 
-      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:hidden" aria-label="Tickets">
+      <section id="tickets" className="mx-auto max-w-7xl scroll-mt-24 px-4 pb-10 sm:px-6 lg:hidden" aria-label="Tickets">
         <h2 className="mb-2 text-xl font-bold">Tickets</h2>
-        <TicketList event={event} />
+        <TicketPicker event={event} />
       </section>
 
       {/* Sits directly above the mobile tab bar (64px + iOS safe area); at md+ there is no tab bar, so it docks to the bottom. */}
       <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-xl md:bottom-0 md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <span className="font-semibold">{fromPrice}</span>
-          <Button className="rounded-full px-6" disabled>
+          <Button
+            className="rounded-full px-6"
+            disabled={!canBook(event)}
+            onClick={() => document.getElementById('tickets')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          >
             {bookLabel(event)}
           </Button>
         </div>

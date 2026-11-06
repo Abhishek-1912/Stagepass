@@ -76,6 +76,25 @@ App emails are queued in `email_outbox` and sent by a background worker every 15
 `RESEND_API_KEY` they stay queued. Until a domain is verified in Resend, send from `onboarding@resend.dev`
 (Resend then only delivers to the Resend account owner's inbox).
 
+## Payments (Razorpay test mode)
+
+1. Razorpay Dashboard → switch to **Test Mode** → Account & Settings → **API Keys** → Generate. Put the key id and
+   secret in `stagepass-api/src/main/resources/application-local.properties` as `RAZORPAY_KEY_ID` /
+   `RAZORPAY_KEY_SECRET` (never commit them; the web app gets the public key id from the API with each order).
+2. Account & Settings → **Webhooks** → Add: URL `https://<your-api-host>/api/v1/webhooks/razorpay`, a secret of your
+   choice (same value in `RAZORPAY_WEBHOOK_SECRET`), events `payment.captured`, `payment.failed`, `order.paid`,
+   `refund.processed`, `refund.failed`, `payment.dispute.*`.
+   Locally, Razorpay can't reach `localhost`: payments still confirm through the browser's verify call, but late
+   payments and refund status updates need the webhook. To test those, expose port 8080 with a tunnel
+   (for example `cloudflared tunnel --url http://localhost:8080`) and use that URL for the webhook.
+3. Pay with test details: UPI `success@razorpay` (or `failure@razorpay`), or card `4111 1111 1111 1111` with any
+   future expiry and any CVV. Test mode never moves real money.
+
+How it fits together: picking tickets holds them for `stagepass.hold-minutes` (10); Razorpay Checkout opens for that
+order; the API confirms only after fetching the payment from Razorpay (exact amount, INR, same order). Unpaid holds
+are released every minute. A payment that arrives after its hold ended is confirmed if tickets are still free,
+otherwise refunded in full automatically.
+
 ## Test accounts
 
 Create these in Supabase → Authentication → Users → Add user, with **Auto Confirm User** ticked:
@@ -110,6 +129,9 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 | `RESEND_API_KEY` | for email | Resend API key (sending access) for app emails |
 | `RESEND_FROM` | no | Sender, e.g. `Stagepass <no-reply@yourdomain>`; default `onboarding@resend.dev` |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | for images | Cloudinary account for signed event-image and logo uploads |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | for payments | Razorpay API keys (`rzp_test_…` in test mode) |
+| `RAZORPAY_WEBHOOK_SECRET` | for payments | Secret entered when creating the Razorpay webhook |
+| `COMPANY_NAME`, `COMPANY_GSTIN`, `COMPANY_STATE` | no | GST invoice details; invoices are issued only when GSTIN is set |
 | `SPRING_PROFILES_ACTIVE` | prod | `prod` on Render (JSON logs) |
 
 ### Web (`stagepass-web`) — all public, bundled into the browser

@@ -16,3 +16,12 @@ RESEND_FROM=Stagepass <onboarding@resend.dev>
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+
+# Razorpay test mode (Dashboard > Test Mode > Account & Settings > API Keys / Webhooks)
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+# GST invoices for the convenience fee (leave GSTIN empty until the company has one)
+COMPANY_NAME=Stagepass
+COMPANY_GSTIN=
+COMPANY_STATE=

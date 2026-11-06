@@ -43,6 +43,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "This changed while you were editing. Please reload and try again."));
     }
 
+    /** Two requests wanted the same rows at once (lock timeout or deadlock victim); safe to retry. */
+    @ExceptionHandler(org.springframework.dao.PessimisticLockingFailureException.class)
+    ResponseEntity<ProblemDetail> handleBusy(Exception ex) {
+        log.warn("Lock conflict: {}", ex.getMessage());
+        return ResponseEntity.status(ErrorCode.CONFLICT.status()).body(problem(ErrorCode.CONFLICT,
+                "Lots of people are booking right now. Please try again."));
+    }
+
     /** A unique or check constraint caught a race the service didn't; never leak SQL to the client. */
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     ResponseEntity<ProblemDetail> handleIntegrity(Exception ex) {
