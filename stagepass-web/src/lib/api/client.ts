@@ -40,10 +40,10 @@ async function parse<T>(response: Response): Promise<T> {
 }
 
 /**
- * Calls the Stagepass API (`/api/v1` + path). Attaches the Supabase access token when signed in.
- * On 401 it refreshes the session once and retries; if that fails the user is signed out and sent to login.
+ * Sends a request to the Stagepass API (`/api/v1` + path) with the Supabase access token. On 401 it refreshes the
+ * session once and retries; if that fails the user is signed out and sent to login.
  */
-export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
+async function request(path: string, init: ApiInit): Promise<Response> {
   const url = `${env.apiBaseUrl}/api/v1${path}`
   const token = await currentToken()
   let response = await send(url, buildRequest(init, token))
@@ -59,6 +59,27 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
       redirectToLogin(window.location.pathname + window.location.search)
     }
   }
+  return response
+}
 
-  return parse<T>(response)
+/** Calls the Stagepass API and parses JSON; failures become {@link ApiError}. */
+export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
+  return parse<T>(await request(path, init))
+}
+
+/** Fetches a file (PDF) from the API; the filename comes from Content-Disposition when present. */
+export async function apiFile(path: string): Promise<{ blob: Blob; filename: string | null }> {
+  const response = await request(path, {})
+  if (!response.ok) {
+    const text = await response.text()
+    let body: unknown
+    try {
+      body = text ? JSON.parse(text) : undefined
+    } catch {
+      body = undefined
+    }
+    throw ApiError.fromProblem(response.status, body)
+  }
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(response.headers.get('Content-Disposition') ?? '')
+  return { blob: await response.blob(), filename: match ? decodeURIComponent(match[1]) : null }
 }

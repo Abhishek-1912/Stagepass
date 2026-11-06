@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { Booking } from '@/features/checkout/types'
@@ -7,6 +8,9 @@ import { refundInfo, testBooking } from './testBooking'
 const api = vi.hoisted(() => ({ useMyBooking: vi.fn(), useRequestRefund: vi.fn() }))
 vi.mock('./api', () => api)
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('qrcode', () => ({ default: { toDataURL: vi.fn(async () => 'data:image/png;base64,QR') } }))
+const downloads = vi.hoisted(() => ({ downloadFile: vi.fn(async () => {}) }))
+vi.mock('./downloads', () => downloads)
 
 import { BookingDetailPage } from './BookingDetailPage'
 
@@ -27,7 +31,6 @@ test('success banner after payment', () => {
   renderAt(testBooking(), '?status=success')
   expect(screen.getByText(/you’re going! booking sp-abc234 is confirmed/i)).toBeInTheDocument()
   expect(screen.getByText('SP-AAAA-2222')).toBeInTheDocument()
-  expect(screen.getByText(/qr codes for entry are coming soon/i)).toBeInTheDocument()
   expect(screen.getByText('GST invoice SP/2026-27/000042')).toBeInTheDocument()
   expect(api.useMyBooking).toHaveBeenCalledWith('b1', { pollWhilePending: true })
 })
@@ -61,4 +64,24 @@ test('outside policy shows request-to-organizer wording', () => {
   expect(screen.getByText(/organizer will review/i)).toBeInTheDocument()
   expect(screen.getByText('Declined')).toBeInTheDocument()
   expect(screen.getByText('Organizer: Too close to the show')).toBeInTheDocument()
+})
+
+test('booking detail links each live ticket and offers PDF and invoice downloads', async () => {
+  renderAt(
+    testBooking({
+      tickets: [
+        { id: 'k1', code: 'SP-AAAA-2222', ticketTypeId: 't1', ticketTypeName: 'General', holderName: 'Asha Rao', status: 'VALID', qrToken: 'tok1.sig' },
+        { id: 'k2', code: 'SP-BBBB-3333', ticketTypeId: 't1', ticketTypeName: 'General', holderName: 'Asha Rao', status: 'REFUNDED' },
+      ],
+    }),
+  )
+
+  expect(await screen.findByRole('img', { name: 'QR code for SP-AAAA-2222' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /show ticket SP-AAAA-2222/i })).toHaveAttribute('href', '/account/bookings/b1/tickets/k1')
+  expect(screen.queryByRole('link', { name: /show ticket SP-BBBB-3333/i })).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: /download tickets/i }))
+  expect(downloads.downloadFile).toHaveBeenCalledWith('/me/bookings/b1/tickets.pdf', 'stagepass-SP-ABC234.pdf')
+  await userEvent.click(screen.getByRole('button', { name: /download invoice/i }))
+  expect(downloads.downloadFile).toHaveBeenCalledWith('/me/bookings/b1/invoice.pdf', 'stagepass-invoice.pdf')
 })

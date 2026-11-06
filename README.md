@@ -95,6 +95,10 @@ order; the API confirms only after fetching the payment from Razorpay (exact amo
 are released every minute. A payment that arrives after its hold ended is confirmed if tickets are still free,
 otherwise refunded in full automatically.
 
+Tickets: each live ticket shows a signed QR (`QR_SECRET`) in My tickets, with a full-screen view for the door; the
+ticket PDF and the GST invoice PDF download from the booking page. Booking, refund and event-change emails are queued
+in `email_outbox` (one per event, deduplicated) and the confirmation email carries the ticket PDF.
+
 ## Test accounts
 
 Create these in Supabase → Authentication → Users → Add user, with **Auto Confirm User** ticked:
