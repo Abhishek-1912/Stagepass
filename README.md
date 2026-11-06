@@ -110,6 +110,9 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 | `RESEND_API_KEY` | for email | Resend API key (sending access) for app emails |
 | `RESEND_FROM` | no | Sender, e.g. `Stagepass <no-reply@yourdomain>`; default `onboarding@resend.dev` |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | for images | Cloudinary account for signed event-image and logo uploads |
+| `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` | for payments | Razorpay API keys (`rzp_test_…` in test mode) |
+| `RAZORPAY_WEBHOOK_SECRET` | for payments | Secret entered when creating the Razorpay webhook |
+| `COMPANY_NAME`, `COMPANY_GSTIN`, `COMPANY_STATE` | no | GST invoice details; invoices are issued only when GSTIN is set |
 | `SPRING_PROFILES_ACTIVE` | prod | `prod` on Render (JSON logs) |
 
 ### Web (`stagepass-web`) — all public, bundled into the browser
