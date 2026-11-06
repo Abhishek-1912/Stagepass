@@ -1,6 +1,12 @@
 import { createBrowserRouter } from 'react-router'
 import { PublicLayout } from '@/components/layout/PublicLayout'
 import { AccountPlaceholderPage } from '@/features/account/AccountPlaceholderPage'
+import { AdminHomePage } from '@/features/admin/AdminHomePage'
+import { AdminLayout } from '@/features/admin/AdminLayout'
+import { CategoriesPage } from '@/features/admin/CategoriesPage'
+import { EventReviewDetail } from '@/features/admin/EventReviewDetail'
+import { EventReviewPage } from '@/features/admin/EventReviewPage'
+import { OrganizerApplicationsPage } from '@/features/admin/OrganizerApplicationsPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
@@ -33,6 +39,21 @@ export const router = createBrowserRouter([
       { path: 'events/new', element: <EventEditorPage /> },
       { path: 'events/:id/:step?', element: <EventEditorPage /> },
       { path: 'venues', element: <VenuesPage /> },
+    ],
+  },
+  {
+    path: '/admin',
+    element: (
+      <RequireAuth>
+        <AdminLayout />
+      </RequireAuth>
+    ),
+    children: [
+      { index: true, element: <AdminHomePage /> },
+      { path: 'organizers', element: <OrganizerApplicationsPage /> },
+      { path: 'events', element: <EventReviewPage /> },
+      { path: 'events/:id', element: <EventReviewDetail /> },
+      { path: 'categories', element: <CategoriesPage /> },
     ],
   },
   {
