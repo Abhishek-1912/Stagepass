@@ -67,11 +67,14 @@ public class RefundService {
     private final AuditLogService audit;
     private final Clock clock;
     private final TransactionTemplate tx;
+    private final BookingEmails emails;
 
     public RefundService(BookingRepository bookings, RefundRepository refunds, PaymentRepository payments,
             EventRepository events, InventoryService inventory, LedgerService ledger, RefundGateway gateway,
             RefundEligibility eligibility, FeeSettingsRepository fees, BookingExpiryService expiry,
-            BookingService bookingService, AuditLogService audit, Clock clock, PlatformTransactionManager txManager) {
+            BookingService bookingService, AuditLogService audit, Clock clock, PlatformTransactionManager txManager,
+            BookingEmails emails) {
+        this.emails = emails;
         this.bookings = bookings;
         this.refunds = refunds;
         this.payments = payments;
@@ -167,6 +170,7 @@ public class RefundService {
             refunds.save(r);
             audit.record(actorId, "REFUND_DECLINED", "refund", r.getId().toString(), null,
                     note == null ? Map.of() : Map.of("note", note));
+            emails.refundDeclined(r, note);
             return bookings.findById(r.getBookingId()).orElseThrow().getEventId();
         });
         return view(organizerId, eventId, refundId);
@@ -211,7 +215,9 @@ public class RefundService {
                     if (live.isEmpty()) {
                         return null;
                     }
-                    return apply(b, live, RefundKind.CANCELLATION, true, null, actorId, "Event cancelled", null).getId();
+                    Refund refund = apply(b, live, RefundKind.CANCELLATION, true, null, actorId, "Event cancelled", null);
+                    emails.eventCancelled(b, refund.getAmountPaise());
+                    return refund.getId();
                 });
                 if (refundId != null) {
                     issued++;

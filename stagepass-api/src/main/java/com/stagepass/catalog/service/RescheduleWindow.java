@@ -19,9 +19,11 @@ public class RescheduleWindow {
     static final int DAYS = 7;
 
     private final AuditLogService audit;
+    private final java.util.List<EventChangeHandler> handlers;
 
-    public RescheduleWindow(AuditLogService audit) {
+    public RescheduleWindow(AuditLogService audit, java.util.List<EventChangeHandler> handlers) {
         this.audit = audit;
+        this.handlers = handlers;
     }
 
     public void openIfLive(Event event, UUID actorId, Map<String, Object> before, Map<String, Object> after) {
@@ -30,5 +32,6 @@ public class RescheduleWindow {
         }
         event.setRescheduleRefundUntil(OffsetDateTime.now().plusDays(DAYS));
         audit.record(actorId, "EVENT_RESCHEDULED", "event", event.getId().toString(), before, after);
+        handlers.forEach(h -> h.onEventChanged(event));
     }
 }
