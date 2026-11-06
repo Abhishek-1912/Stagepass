@@ -1,10 +1,15 @@
 package com.stagepass.booking;
 
+import com.stagepass.booking.api.BookingResponse;
+import com.stagepass.booking.api.CreateBookingRequest;
+import com.stagepass.booking.service.BookingService;
 import com.stagepass.support.CatalogFixtures;
+import com.stagepass.support.SharedRazorpay;
 import com.stagepass.support.TestUsers;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /** Builds request bodies and live events for booking tests. */
@@ -13,13 +18,33 @@ public class BookingTestSupport {
 
     private final CatalogFixtures catalog;
     private final TestUsers users;
+    private final BookingService bookings;
 
-    public BookingTestSupport(CatalogFixtures catalog, TestUsers users) {
+    public BookingTestSupport(CatalogFixtures catalog, TestUsers users, BookingService bookings) {
         this.catalog = catalog;
         this.users = users;
+        this.bookings = bookings;
     }
 
     public record LiveEvent(UUID eventId, UUID ticketTypeId, TestUsers.TestUser organizer) {
+    }
+
+    /** A pending (or, for ₹0, confirmed) booking of {@code qty} tickets made through the real service. */
+    public BookingResponse book(LiveEvent e, int qty, TestUsers.TestUser buyer) {
+        return bookings.create(buyer.id(), "test-" + UUID.randomUUID(), new CreateBookingRequest(e.eventId(),
+                List.of(new CreateBookingRequest.Item(e.ticketTypeId(), qty)), "Asha Rao", "asha@test.in", null,
+                "Telangana")).booking();
+    }
+
+    /** Scripts a captured Razorpay payment for the booking's order and returns its id. */
+    public static String capturedPayment(BookingResponse b) {
+        return scriptedPayment(b, b.checkout().amountPaise(), "captured");
+    }
+
+    public static String scriptedPayment(BookingResponse b, long amountPaise, String status) {
+        String id = "pay_" + UUID.randomUUID().toString().replace("-", "").substring(0, 14);
+        SharedRazorpay.server().payment(id, b.checkout().razorpayOrderId(), amountPaise, status);
+        return id;
     }
 
     /** A published event 10 days out with one extra ACTIVE type at {@code pricePaise} × {@code quantity}. */

@@ -4,6 +4,7 @@ import com.stagepass.booking.api.BookingResponse;
 import com.stagepass.booking.domain.Booking;
 import com.stagepass.booking.domain.BookingStatus;
 import com.stagepass.booking.domain.PriceBreakdown;
+import com.stagepass.booking.repository.InvoiceRepository;
 import com.stagepass.catalog.domain.Event;
 import com.stagepass.catalog.domain.TicketType;
 import com.stagepass.catalog.repository.EventRepository;
@@ -31,9 +32,11 @@ public class BookingViews {
     private final PaymentRepository payments;
     private final RazorpayClient razorpay;
     private final CompanyProperties company;
+    private final InvoiceRepository invoices;
 
     public BookingViews(EventRepository events, TicketTypeRepository types, PaymentRepository payments,
-            RazorpayClient razorpay, CompanyProperties company) {
+            RazorpayClient razorpay, CompanyProperties company, InvoiceRepository invoices) {
+        this.invoices = invoices;
         this.events = events;
         this.types = types;
         this.payments = payments;
@@ -72,6 +75,7 @@ public class BookingViews {
         String city = e.getVenue() == null ? null : e.getVenue().getCity();
         return new BookingResponse(b.getId(), b.getCode(), b.getStatus().name(), e.getId(), e.getTitle(), e.getSlug(),
                 e.getStartsAt(), venueName, city, items, price, b.getHoldExpiresAt(), checkout, tickets,
-                b.getAttendeeName(), b.getAttendeeEmail(), null, null);
+                b.getAttendeeName(), b.getAttendeeEmail(),
+                invoices.findByBookingId(b.getId()).map(i -> i.getNumber()).orElse(null), null);
     }
 }
