@@ -53,7 +53,8 @@ export function BasicsStep({ event }: { event?: EventDetail }) {
         })
         navigate(`/organizer/events/${created.id}/when-where`, { replace: true })
       } else {
-        await update.mutateAsync(input)
+        const clear = (['summary', 'description', 'terms'] as const).filter((f) => !v[f]?.trim() && event[f])
+        await update.mutateAsync(clear.length ? { ...input, clear: [...clear] } : input)
         navigate(`/organizer/events/${event.id}/when-where`)
       }
     } catch (e) {

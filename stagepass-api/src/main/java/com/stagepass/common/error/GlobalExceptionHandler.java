@@ -36,6 +36,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.status()).body(body);
     }
 
+    /** Two people saved the same record at once (JPA @Version). */
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    ResponseEntity<ProblemDetail> handleStale(Exception ex) {
+        return ResponseEntity.status(ErrorCode.CONFLICT.status()).body(problem(ErrorCode.CONFLICT,
+                "This changed while you were editing. Please reload and try again."));
+    }
+
+    /** A unique or check constraint caught a race the service didn't; never leak SQL to the client. */
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    ResponseEntity<ProblemDetail> handleIntegrity(Exception ex) {
+        log.warn("Data integrity violation: {}", ex.getMessage());
+        return ResponseEntity.status(ErrorCode.CONFLICT.status()).body(problem(ErrorCode.CONFLICT,
+                "That conflicts with a change made at the same time. Please reload and try again."));
+    }
+
     /** Method-security denials are rethrown so Spring Security's handler answers, but keep a fallback. */
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException ex) {

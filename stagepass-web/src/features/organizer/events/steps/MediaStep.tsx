@@ -26,6 +26,7 @@ export function MediaStep({ event }: { event: EventDetail }) {
         purpose="EVENT_IMAGE"
         eventId={event.id}
         label="Cover image"
+        removable={false}
         hint="16:9, at least 1600×900, JPG/PNG/WebP up to 5 MB. This is the first thing people see."
         value={event.coverImageUrl}
         onChange={(url) => url && save({ coverImageUrl: url })}

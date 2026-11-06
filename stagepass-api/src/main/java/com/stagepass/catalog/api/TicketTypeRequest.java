@@ -18,7 +18,9 @@ public record TicketTypeRequest(
         @Min(1) @Max(50) Integer minPerOrder,
         @Min(1) @Max(50) Integer maxPerOrder,
         @Min(0) @Max(1000) Integer sortOrder,
-        String status) {
+        String status,
+        /** Optional fields to reset, e.g. ["saleEndsAt"]. */
+        @Size(max = 5) java.util.List<String> clear) {
 
     public TicketTypeRequest {
         name = Formats.trim(name);

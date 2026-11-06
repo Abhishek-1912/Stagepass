@@ -4,6 +4,7 @@ import com.stagepass.catalog.api.AdminEventSummary;
 import com.stagepass.catalog.api.EventResponse;
 import com.stagepass.catalog.domain.Event;
 import com.stagepass.catalog.domain.EventStatus;
+import com.stagepass.catalog.domain.TicketTypeStatus;
 import com.stagepass.catalog.repository.EventRepository;
 import com.stagepass.common.api.PageResponse;
 import com.stagepass.common.audit.AuditLogService;
@@ -49,15 +50,7 @@ public class EventLifecycleService {
         if (!SUBMITTABLE.contains(e.getStatus())) {
             throw new ApiException(ErrorCode.INVALID_STATE, "Only drafts or rejected events can be submitted.");
         }
-        FieldErrors.start()
-                .addIf(e.getSummary() == null || e.getSummary().isBlank(), "summary", "Add a short summary")
-                .addIf(e.getCoverImageUrl() == null, "coverImageUrl", "Add a cover image")
-                .addIf(e.getTicketTypes().isEmpty(), "ticketTypes", "Add at least one ticket type")
-                .addIf(!e.getStartsAt().isAfter(OffsetDateTime.now()), "startsAt", "Start time must be in the future")
-                .addIf(!e.isOnline() && e.getVenue() == null, "venueId", "Choose a venue or mark the event as online")
-                .addIf(e.isOnline() && (e.getOnlineUrl() == null || e.getOnlineUrl().isBlank()), "onlineUrl",
-                        "Add the online event link")
-                .throwIfAny();
+        requireReadyToPublish(e);
         EventStatus before = e.getStatus();
         e.setStatus(EventStatus.PENDING_REVIEW);
         e.setSubmittedAt(OffsetDateTime.now());
@@ -106,6 +99,7 @@ public class EventLifecycleService {
         if (!e.getStartsAt().isAfter(OffsetDateTime.now())) {
             throw new ApiException(ErrorCode.INVALID_STATE, "This event has already started; reject it instead.");
         }
+        requireReadyToPublish(e);
         e.setStatus(EventStatus.PUBLISHED);
         e.setPublishedAt(OffsetDateTime.now());
         e.setReviewedBy(adminId);
@@ -141,6 +135,20 @@ public class EventLifecycleService {
         e.setFeatured(featured);
         audit.record(adminId, "EVENT_FEATURED", "event", eventId.toString(), null, Map.of("featured", featured));
         return EventResponse.from(e);
+    }
+
+    /** The submit checks, also re-run at approval so nothing unreviewed or incomplete gets published. */
+    static void requireReadyToPublish(Event e) {
+        boolean hasActiveTickets = e.getTicketTypes().stream().anyMatch(t -> t.getStatus() == TicketTypeStatus.ACTIVE);
+        FieldErrors.start()
+                .addIf(e.getSummary() == null || e.getSummary().isBlank(), "summary", "Add a short summary")
+                .addIf(e.getCoverImageUrl() == null, "coverImageUrl", "Add a cover image")
+                .addIf(!hasActiveTickets, "ticketTypes", "Add at least one ticket type that's on sale")
+                .addIf(!e.getStartsAt().isAfter(OffsetDateTime.now()), "startsAt", "Start time must be in the future")
+                .addIf(!e.isOnline() && e.getVenue() == null, "venueId", "Choose a venue or mark the event as online")
+                .addIf(e.isOnline() && (e.getOnlineUrl() == null || e.getOnlineUrl().isBlank()), "onlineUrl",
+                        "Add the online event link")
+                .throwIfAny();
     }
 
     private Event find(UUID eventId) {

@@ -52,6 +52,32 @@ test('shows the server minimum when quantity is too low', async () => {
   expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('45'))
 })
 
+test('emptying max tickets per person clears the limit', async () => {
+  const updateEvent = vi.fn().mockResolvedValue(eventDetail())
+  hooks.useUpdateEvent.mockReturnValue({ mutateAsync: updateEvent, isPending: false })
+  render(<TicketsStep event={eventDetail({ maxTicketsPerUser: 4 })} />)
+
+  await userEvent.clear(screen.getByLabelText(/max tickets per person/i))
+  await userEvent.click(screen.getByRole('button', { name: /save rules/i }))
+
+  expect(updateEvent).toHaveBeenCalledWith(expect.objectContaining({ clear: expect.arrayContaining(['maxTicketsPerUser']) }))
+  expect(updateEvent.mock.calls[0][0]).not.toHaveProperty('maxTicketsPerUser')
+})
+
+test('refund window needs a whole number of hours', async () => {
+  const updateEvent = vi.fn()
+  hooks.useUpdateEvent.mockReturnValue({ mutateAsync: updateEvent, isPending: false })
+  render(<TicketsStep event={eventDetail({ refundPolicy: 'UNTIL_HOURS_BEFORE', refundCutoffHours: 48 })} />)
+
+  const hours = screen.getByLabelText(/hours before start/i)
+  await userEvent.clear(hours)
+  await userEvent.type(hours, 'abc')
+  await userEvent.click(screen.getByRole('button', { name: /save rules/i }))
+
+  expect(updateEvent).not.toHaveBeenCalled()
+  expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/hours/i))
+})
+
 test('adds a new ticket type in paise', async () => {
   save.mockResolvedValue(ticketType({ id: 't9', name: 'Early bird' }))
   render(<TicketsStep event={eventDetail({ ticketTypes: [] })} />)

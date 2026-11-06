@@ -31,23 +31,23 @@ import java.util.UUID;
 @Service
 public class EventService {
 
-    static final int RESCHEDULE_REFUND_DAYS = 7;
-
     private final EventRepository events;
     private final CategoryRepository categories;
     private final OrganizerRepository organizers;
     private final VenueService venues;
     private final AuditLogService audit;
     private final EventImagePolicy images;
+    private final RescheduleWindow rescheduleWindow;
 
     public EventService(EventRepository events, CategoryRepository categories, OrganizerRepository organizers,
-            VenueService venues, AuditLogService audit, EventImagePolicy images) {
+            VenueService venues, AuditLogService audit, EventImagePolicy images, RescheduleWindow rescheduleWindow) {
         this.events = events;
         this.categories = categories;
         this.organizers = organizers;
         this.venues = venues;
         this.audit = audit;
         this.images = images;
+        this.rescheduleWindow = rescheduleWindow;
     }
 
     @Transactional
@@ -89,15 +89,11 @@ public class EventService {
 
         apply(organizerId, event, r);
 
-        if (event.getStatus() == EventStatus.PENDING_REVIEW) {
-            event.setStatus(EventStatus.DRAFT);
-            event.setSubmittedAt(null);
-        }
+        returnToDraftIfInReview(event);
         UUID newVenue = event.getVenue() == null ? null : event.getVenue().getId();
         boolean rescheduled = !event.getStartsAt().isEqual(oldStart) || !event.getEndsAt().isEqual(oldEnd)
                 || !Objects.equals(oldVenue, newVenue);
-        if (event.getStatus() == EventStatus.PUBLISHED && rescheduled) {
-            event.setRescheduleRefundUntil(OffsetDateTime.now().plusDays(RESCHEDULE_REFUND_DAYS));
+        if (rescheduled) {
             Map<String, Object> before = new LinkedHashMap<>();
             before.put("startsAt", oldStart.toString());
             before.put("endsAt", oldEnd.toString());
@@ -106,10 +102,26 @@ public class EventService {
             after.put("startsAt", event.getStartsAt().toString());
             after.put("endsAt", event.getEndsAt().toString());
             after.put("venueId", newVenue == null ? null : newVenue.toString());
-            audit.record(actorId, "EVENT_RESCHEDULED", "event", eventId.toString(), before, after);
+            openRescheduleWindowIfLive(event, actorId, before, after);
         }
         events.flush();
         return EventResponse.from(event);
+    }
+
+    /** Any change to an event that is waiting for review sends it back to draft, so admins never approve unseen edits. */
+    public void returnToDraftIfInReview(Event event) {
+        if (event.getStatus() == EventStatus.PENDING_REVIEW) {
+            event.setStatus(EventStatus.DRAFT);
+            event.setSubmittedAt(null);
+        }
+    }
+
+    /**
+     * Spec §8.4a: a date, time or venue change on a live event lets ticket holders self-refund in full for 7 days.
+     * (Plan 4 adds the emails to ticket holders.)
+     */
+    public void openRescheduleWindowIfLive(Event event, UUID actorId, Map<String, Object> before, Map<String, Object> after) {
+        rescheduleWindow.openIfLive(event, actorId, before, after);
     }
 
     @Transactional
@@ -132,6 +144,7 @@ public class EventService {
 
     private void apply(UUID organizerId, Event e, EventUpsertRequest r) {
         FieldErrors errors = FieldErrors.start();
+        applyClear(e, r.clear(), errors);
         if (r.title() != null) {
             e.setTitle(r.title());
         }
@@ -195,6 +208,34 @@ public class EventService {
             r.gallery().forEach(url -> images.check(e.getId(), url, "gallery", errors));
             e.setGallery(new ArrayList<>(r.gallery()));
         }
+        if (e.getRefundPolicy() == RefundPolicy.UNTIL_HOURS_BEFORE && e.getRefundCutoffHours() == null) {
+            errors.add("refundCutoffHours", "Say how many hours before the start refunds close");
+        }
+        if (e.getStatus() == EventStatus.PUBLISHED && r.startsAt() != null
+                && !r.startsAt().isAfter(OffsetDateTime.now())) {
+            errors.add("startsAt", "A live event can't be moved into the past");
+        }
         errors.throwIfAny();
+    }
+
+    /** Optional fields a PATCH may clear by naming them in {@code clear}. */
+    static final java.util.Set<String> CLEARABLE = java.util.Set.of("summary", "description", "terms",
+            "maxTicketsPerUser", "refundCutoffHours", "onlineUrl");
+
+    private static void applyClear(Event e, java.util.List<String> clear, FieldErrors errors) {
+        if (clear == null) {
+            return;
+        }
+        for (String field : clear) {
+            switch (field) {
+                case "summary" -> e.setSummary(null);
+                case "description" -> e.setDescription(null);
+                case "terms" -> e.setTerms(null);
+                case "maxTicketsPerUser" -> e.setMaxTicketsPerUser(null);
+                case "refundCutoffHours" -> e.setRefundCutoffHours(null);
+                case "onlineUrl" -> e.setOnlineUrl(null);
+                default -> errors.add("clear", "'" + field + "' can't be cleared; clearable fields: " + CLEARABLE);
+            }
+        }
     }
 }

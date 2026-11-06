@@ -7,7 +7,7 @@ import { SelectField, TextAreaField, TextField } from '@/components/form/fields'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { isApiError } from '@/lib/api/ApiError'
-import type { EventDetail, RefundPolicy, TicketType, TicketTypeInput } from '@/lib/api/types'
+import type { EventClearable, EventDetail, EventInput, RefundPolicy, TicketType, TicketTypeInput } from '@/lib/api/types'
 import { istInputToIso, isoToIstInput } from '@/lib/datetime'
 import { formatPaise, paiseToRupeesInput } from '@/lib/money'
 import { useDeleteTicketType, useSaveTicketType, useUpdateEvent } from '../../api'
@@ -54,6 +54,14 @@ function TicketTypeDialog({
       saleStartsAt: v.saleStartsAt ? istInputToIso(v.saleStartsAt) : undefined,
       saleEndsAt: v.saleEndsAt ? istInputToIso(v.saleEndsAt) : undefined,
       ...(priceLocked ? {} : { pricePaise: v.pricePaise }),
+    }
+    if (editing) {
+      // Emptied optional fields must be cleared explicitly; an absent field means "unchanged".
+      const clear: NonNullable<TicketTypeInput['clear']> = []
+      if (!v.description && editing.description) clear.push('description')
+      if (!v.saleStartsAt && editing.saleStartsAt) clear.push('saleStartsAt')
+      if (!v.saleEndsAt && editing.saleEndsAt) clear.push('saleEndsAt')
+      if (clear.length) input.clear = clear
     }
     try {
       await save.mutateAsync({ id: editing?.id, input })
@@ -119,12 +127,28 @@ function BookingRules({ event }: { event: EventDetail }) {
   const [cutoff, setCutoff] = useState(event.refundCutoffHours?.toString() ?? '48')
 
   async function saveRules() {
+    const input: EventInput = { refundPolicy: policy }
+    const clear: EventClearable[] = []
+    if (maxPerUser.trim() === '') {
+      if (event.maxTicketsPerUser !== null) clear.push('maxTicketsPerUser')
+    } else if (/^\d+$/.test(maxPerUser.trim()) && Number(maxPerUser) >= 1 && Number(maxPerUser) <= 50) {
+      input.maxTicketsPerUser = Number(maxPerUser)
+    } else {
+      toast.error('Max tickets per person must be a whole number from 1 to 50')
+      return
+    }
+    if (policy === 'UNTIL_HOURS_BEFORE') {
+      if (!/^\d+$/.test(cutoff.trim()) || Number(cutoff) > 720) {
+        toast.error('Enter refund hours as a whole number up to 720')
+        return
+      }
+      input.refundCutoffHours = Number(cutoff)
+    } else if (event.refundCutoffHours !== null) {
+      clear.push('refundCutoffHours')
+    }
+    if (clear.length) input.clear = clear
     try {
-      await update.mutateAsync({
-        maxTicketsPerUser: maxPerUser ? Number(maxPerUser) : undefined,
-        refundPolicy: policy,
-        refundCutoffHours: policy === 'UNTIL_HOURS_BEFORE' ? Number(cutoff) : undefined,
-      })
+      await update.mutateAsync(input)
       toast.success('Booking rules saved')
     } catch (e) {
       toast.error(isApiError(e) ? (e.fieldErrors[0]?.message ?? e.detail) : 'Could not save booking rules')

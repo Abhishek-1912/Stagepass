@@ -16,10 +16,12 @@ interface Props {
   hint?: string
   aspect?: 'cover' | 'square'
   disabled?: boolean
+  /** false for required images (e.g. the cover): offer Replace instead of Remove. */
+  removable?: boolean
 }
 
 /** Picks an image, gets a signature from the API, uploads straight to Cloudinary and reports the URL. */
-export function ImageUploader({ purpose, eventId, value, onChange, label, hint, aspect = 'cover', disabled }: Props) {
+export function ImageUploader({ purpose, eventId, value, onChange, label, hint, aspect = 'cover', disabled, removable = true }: Props) {
   const inputId = useId()
   const input = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -60,7 +62,20 @@ export function ImageUploader({ purpose, eventId, value, onChange, label, hint, 
         {value ? (
           <>
             <img src={value} alt="" className="size-full object-cover" />
-            {!disabled && (
+            {!disabled && !removable && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                aria-label={`Replace ${label.toLowerCase()}`}
+                className="absolute bottom-2 right-2 rounded-full"
+                disabled={busy}
+                onClick={() => input.current?.click()}
+              >
+                {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />} Replace
+              </Button>
+            )}
+            {!disabled && removable && (
               <Button
                 type="button"
                 size="icon"

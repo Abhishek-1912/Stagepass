@@ -3,6 +3,9 @@ package com.stagepass.catalog.service;
 import com.stagepass.catalog.api.VenueRequest;
 import com.stagepass.catalog.api.VenueResponse;
 import com.stagepass.catalog.domain.Venue;
+import com.stagepass.catalog.domain.Event;
+import com.stagepass.catalog.domain.EventStatus;
+import com.stagepass.catalog.repository.EventRepository;
 import com.stagepass.catalog.repository.VenueRepository;
 import com.stagepass.common.error.ApiException;
 import com.stagepass.common.error.FieldErrors;
@@ -10,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** An organizer's own venues. Another organizer's venue id always answers 404. */
@@ -17,9 +21,13 @@ import java.util.UUID;
 public class VenueService {
 
     private final VenueRepository venues;
+    private final EventRepository events;
+    private final RescheduleWindow rescheduleWindow;
 
-    public VenueService(VenueRepository venues) {
+    public VenueService(VenueRepository venues, EventRepository events, RescheduleWindow rescheduleWindow) {
         this.venues = venues;
+        this.events = events;
+        this.rescheduleWindow = rescheduleWindow;
     }
 
     @Transactional(readOnly = true)
@@ -38,11 +46,25 @@ public class VenueService {
     }
 
     @Transactional
-    public VenueResponse update(UUID organizerId, UUID venueId, VenueRequest request) {
+    public VenueResponse update(UUID organizerId, UUID actorId, UUID venueId, VenueRequest request) {
         Venue venue = owned(organizerId, venueId);
+        String before = location(venue);
         apply(venue, request);
+        String after = location(venue);
+        if (!before.equals(after)) {
+            // Moving a venue is a venue change for every live event held there.
+            for (Event event : events.findByVenueIdAndStatus(venueId, EventStatus.PUBLISHED)) {
+                rescheduleWindow.openIfLive(event, actorId, Map.of("venueAddress", before), Map.of("venueAddress", after));
+            }
+        }
         venues.flush();
         return VenueResponse.from(venue);
+    }
+
+    private static String location(Venue v) {
+        return String.join("|", String.valueOf(v.getAddressLine()), String.valueOf(v.getCity()),
+                String.valueOf(v.getState()), String.valueOf(v.getPincode()), String.valueOf(v.getLat()),
+                String.valueOf(v.getLng()));
     }
 
     /** For other catalog services: the organizer's venue or 404. */

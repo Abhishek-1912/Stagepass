@@ -22,10 +22,13 @@ public class OrganizerVenueController {
 
     private final VenueService venues;
     private final OrganizerGuard guard;
+    private final com.stagepass.common.security.CurrentUser currentUser;
 
-    public OrganizerVenueController(VenueService venues, OrganizerGuard guard) {
+    public OrganizerVenueController(VenueService venues, OrganizerGuard guard,
+            com.stagepass.common.security.CurrentUser currentUser) {
         this.venues = venues;
         this.guard = guard;
+        this.currentUser = currentUser;
     }
 
     @GetMapping
@@ -41,6 +44,6 @@ public class OrganizerVenueController {
 
     @PatchMapping("/{id}")
     public VenueResponse update(@PathVariable UUID id, @Valid @RequestBody VenueRequest request) {
-        return venues.update(guard.requireApprovedOrganizerId(), id, request);
+        return venues.update(guard.requireApprovedOrganizerId(), currentUser.id(), id, request);
     }
 }

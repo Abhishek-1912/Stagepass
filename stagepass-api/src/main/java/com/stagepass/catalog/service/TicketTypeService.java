@@ -47,6 +47,7 @@ public class TicketTypeService {
         TicketType type = TicketType.create(event, r.name(), r.pricePaise(), r.quantity());
         applyDetails(type, event, r);
         event.getTicketTypes().add(type);
+        events.returnToDraftIfInReview(event);
         types.saveAndFlush(type);
         return TicketTypeResponse.from(type);
     }
@@ -67,7 +68,11 @@ public class TicketTypeService {
         if (r.name() != null) {
             type.setName(r.name());
         }
+        if (r.status() != null && !"ACTIVE".equals(r.status())) {
+            requireAnotherActiveTypeIfLive(event, type);
+        }
         applyDetails(type, event, r);
+        events.returnToDraftIfInReview(event);
         types.flush();
 
         if (r.quantity() != null && r.quantity() != inv.getTotal()) {
@@ -89,7 +94,9 @@ public class TicketTypeService {
         if (type.getInventory().getSold() > 0 || type.getInventory().getHeld() > 0) {
             throw ApiException.conflict("Tickets of this type have been sold or reserved. Hide it instead.");
         }
+        requireAnotherActiveTypeIfLive(event, type);
         event.getTicketTypes().remove(type);
+        events.returnToDraftIfInReview(event);
         types.delete(type);
     }
 
@@ -101,12 +108,34 @@ public class TicketTypeService {
         return event;
     }
 
+    /** A live event must always keep at least one ticket type on sale. */
+    private static void requireAnotherActiveTypeIfLive(Event event, TicketType changing) {
+        if (event.getStatus() != EventStatus.PUBLISHED || changing.getStatus() != TicketTypeStatus.ACTIVE) {
+            return;
+        }
+        boolean another = event.getTicketTypes().stream()
+                .anyMatch(t -> t != changing && t.getStatus() == TicketTypeStatus.ACTIVE);
+        if (!another) {
+            throw ApiException.conflict("A live event needs at least one ticket type on sale. Add another first, or cancel the event.");
+        }
+    }
+
     private TicketType owned(UUID eventId, UUID typeId) {
         return types.findByIdAndEventId(typeId, eventId).orElseThrow(() -> ApiException.notFound("Ticket type"));
     }
 
     private static void applyDetails(TicketType t, Event event, TicketTypeRequest r) {
         FieldErrors errors = FieldErrors.start();
+        if (r.clear() != null) {
+            for (String field : r.clear()) {
+                switch (field) {
+                    case "description" -> t.setDescription(null);
+                    case "saleStartsAt" -> t.setSaleStartsAt(null);
+                    case "saleEndsAt" -> t.setSaleEndsAt(null);
+                    default -> errors.add("clear", "'" + field + "' can't be cleared; clearable: description, saleStartsAt, saleEndsAt");
+                }
+            }
+        }
         if (r.description() != null) {
             t.setDescription(r.description());
         }

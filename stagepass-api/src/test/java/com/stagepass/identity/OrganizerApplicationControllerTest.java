@@ -120,7 +120,7 @@ public class OrganizerApplicationControllerTest extends PostgresIntegrationTest 
     void attendeeCannotUseOrganizerEndpoints() throws Exception {
         mvc.perform(get("/api/v1/organizer/events").header("Authorization", users.attendee().bearer()))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+                .andExpect(jsonPath("$.code").value("ORGANIZER_NOT_APPROVED"));
     }
 
     @Test

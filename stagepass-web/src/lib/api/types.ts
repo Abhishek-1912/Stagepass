@@ -102,6 +102,7 @@ export interface TicketTypeInput {
   maxPerOrder?: number
   sortOrder?: number
   status?: TicketTypeStatus
+  clear?: ('description' | 'saleStartsAt' | 'saleEndsAt')[]
 }
 
 export interface EventDetail {
@@ -151,7 +152,11 @@ export interface EventInput {
   refundCutoffHours?: number
   coverImageUrl?: string
   gallery?: string[]
+  /** Optional fields to reset to empty. */
+  clear?: EventClearable[]
 }
+
+export type EventClearable = 'summary' | 'description' | 'terms' | 'maxTicketsPerUser' | 'refundCutoffHours' | 'onlineUrl'
 
 export interface EventSummary {
   id: string

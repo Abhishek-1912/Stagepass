@@ -58,6 +58,21 @@ class GlobalExceptionHandlerTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
     }
 
+    @Test
+    void concurrentEditIsConflictNotServerError() throws Exception {
+        mvc.perform(get("/test/stale"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("reload")));
+    }
+
+    @Test
+    void constraintViolationIsConflictWithoutLeakingSql() throws Exception {
+        mvc.perform(get("/test/duplicate"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("constraint"))));
+    }
+
     record NamedRequest(@NotBlank String name) {
     }
 
@@ -78,6 +93,16 @@ class GlobalExceptionHandlerTest extends PostgresIntegrationTest {
         @GetMapping("/boom")
         String boom() {
             throw new IllegalStateException("secret internal detail");
+        }
+
+        @GetMapping("/stale")
+        String stale() {
+            throw new org.springframework.orm.ObjectOptimisticLockingFailureException("Event", "e1");
+        }
+
+        @GetMapping("/duplicate")
+        String duplicate() {
+            throw new org.springframework.dao.DataIntegrityViolationException("duplicate key value violates unique constraint");
         }
     }
 

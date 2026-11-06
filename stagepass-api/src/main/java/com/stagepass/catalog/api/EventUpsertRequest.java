@@ -30,7 +30,9 @@ public record EventUpsertRequest(
         String refundPolicy,
         @Min(0) @Max(720) Integer refundCutoffHours,
         @Size(max = 500) String coverImageUrl,
-        @Size(max = 8) List<@Size(max = 500) String> gallery) {
+        @Size(max = 8) List<@Size(max = 500) String> gallery,
+        /** Optional fields to reset to empty, e.g. ["maxTicketsPerUser","terms"]. */
+        @Size(max = 10) List<String> clear) {
 
     public EventUpsertRequest {
         title = Formats.trim(title);
