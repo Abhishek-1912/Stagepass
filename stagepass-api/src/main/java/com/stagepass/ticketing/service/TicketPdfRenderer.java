@@ -10,6 +10,7 @@ import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
 import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.ColumnText;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import org.springframework.stereotype.Component;
@@ -34,6 +35,11 @@ public class TicketPdfRenderer {
     static final Color INK = new Color(0x17, 0x19, 0x23);
     static final Color MUTED = new Color(0x5A, 0x60, 0x72);
     private static final float MM = 72f / 25.4f;
+    private static final float MARGIN = 8 * MM;
+    /** Fixed box at the bottom of every page for the terms; body content never flows into it. */
+    private static final float TERMS_HEIGHT = 40;
+    private static final int TITLE_MAX = 75;
+    private static final int LINE_MAX = 60;
 
     private final QrImages qr;
 
@@ -46,8 +52,8 @@ public class TicketPdfRenderer {
             throw new IllegalArgumentException("No tickets to render");
         }
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        Document doc = new Document(PageSize.A6, 8 * MM, 8 * MM, 8 * MM, 8 * MM);
-        PdfWriter.getInstance(doc, out);
+        Document doc = new Document(PageSize.A6, MARGIN, MARGIN, MARGIN, MARGIN + TERMS_HEIGHT);
+        PdfWriter writer = PdfWriter.getInstance(doc, out);
         doc.addTitle("Stagepass tickets");
         doc.open();
         boolean first = true;
@@ -57,6 +63,7 @@ public class TicketPdfRenderer {
             }
             first = false;
             page(doc, p);
+            terms(writer, p.terms());
         }
         doc.close();
         return out.toByteArray();
@@ -72,24 +79,26 @@ public class TicketPdfRenderer {
         band.addCell(cell);
         doc.add(band);
 
-        doc.add(para(PdfText.safe(p.eventTitle()), new Font(Font.HELVETICA, 13, Font.BOLD, INK), 6));
+        doc.add(para(clip(orElse(PdfText.safe(p.eventTitle()), "Stagepass event"), TITLE_MAX),
+                new Font(Font.HELVETICA, 12, Font.BOLD, INK), 6));
         doc.add(para(PdfText.dateTime(p.startsAt()), new Font(Font.HELVETICA, 8, Font.NORMAL, INK), 2));
-        doc.add(para(PdfText.safe(p.venue()), new Font(Font.HELVETICA, 8, Font.NORMAL, MUTED), 1));
+        doc.add(para(clip(orElse(PdfText.safe(p.venue()), "Venue to be announced"), LINE_MAX),
+                new Font(Font.HELVETICA, 8, Font.NORMAL, MUTED), 1));
 
         Font label = new Font(Font.HELVETICA, 7, Font.NORMAL, MUTED);
         Font value = new Font(Font.HELVETICA, 9, Font.BOLD, INK);
         Paragraph details = new Paragraph();
         details.setSpacingBefore(6);
         details.add(new Chunk("Holder  ", label));
-        details.add(new Chunk(PdfText.safe(p.holder()), value));
+        details.add(new Chunk(clip(orElse(PdfText.safe(p.holder()), "Ticket holder"), 40), value));
         details.add(Chunk.NEWLINE);
         details.add(new Chunk("Ticket  ", label));
-        details.add(new Chunk(PdfText.safe(p.ticketType()) + "  ·  " + PdfText.money(p.pricePaise()), value));
+        details.add(new Chunk(clip(orElse(PdfText.safe(p.ticketType()), "Ticket"), 30) + "  ·  " + PdfText.money(p.pricePaise()), value));
         doc.add(details);
 
         try {
             Image image = Image.getInstance(qr.png(p.qrToken(), 600));
-            image.scaleAbsolute(50 * MM, 50 * MM);
+            image.scaleAbsolute(46 * MM, 46 * MM);
             image.setAlignment(Element.ALIGN_CENTER);
             image.setSpacingBefore(4);
             doc.add(image);
@@ -105,11 +114,26 @@ public class TicketPdfRenderer {
         bookingLine.setAlignment(Element.ALIGN_CENTER);
         doc.add(bookingLine);
 
-        if (p.terms() != null && !p.terms().isBlank()) {
-            String terms = PdfText.safe(p.terms());
-            doc.add(para(terms.length() > 600 ? terms.substring(0, 600) + "…" : terms,
-                    new Font(Font.HELVETICA, 5.5f, Font.NORMAL, MUTED), 5));
+    }
+
+    /** Terms in the reserved bottom box; text that does not fit is cut, so a ticket never spills onto a second page. */
+    private static void terms(PdfWriter writer, String raw) {
+        if (raw == null || raw.isBlank()) {
+            return;
         }
+        String text = PdfText.safe(raw).replaceAll("\\s+", " ");
+        ColumnText column = new ColumnText(writer.getDirectContent());
+        column.setSimpleColumn(new Phrase(clip(text, 600), new Font(Font.HELVETICA, 5.5f, Font.NORMAL, MUTED)),
+                MARGIN, MARGIN, PageSize.A6.getWidth() - MARGIN, MARGIN + TERMS_HEIGHT - 4, 7, Element.ALIGN_LEFT);
+        column.go();
+    }
+
+    private static String orElse(String s, String fallback) {
+        return s == null || s.isBlank() ? fallback : s;
+    }
+
+    private static String clip(String s, int max) {
+        return s.length() > max ? s.substring(0, max - 1).stripTrailing() + "…" : s;
     }
 
     private static Paragraph para(String text, Font font, float spacingBefore) {

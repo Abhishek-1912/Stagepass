@@ -188,4 +188,46 @@ class EmailDispatcherTest extends PostgresIntegrationTest {
         assertThat(row(id).get("status")).isEqualTo("SENT");
         assertThat(resend.received().get(0).body()).doesNotContain("attachments");
     }
+
+    /** A provider that fails inside a transaction joined from the dispatcher (as a @Transactional PDF builder would). */
+    private EmailAttachmentProvider failingProvider() {
+        return new EmailAttachmentProvider() {
+            @Override
+            public boolean supports(EmailTemplate t) {
+                return t == EmailTemplate.BOOKING_CONFIRMED;
+            }
+
+            @Override
+            public List<EmailAttachment> attachmentsFor(EmailTemplate t, Map<String, ?> data) {
+                return new org.springframework.transaction.support.TransactionTemplate(txManager).execute(s -> {
+                    throw new IllegalStateException("pdf boom");
+                });
+            }
+        };
+    }
+
+    @Test
+    void attachmentFailureIsRetriedAndDoesNotBlockOtherEmails() {
+        UUID broken = outbox.enqueue("asha@test.in", EmailTemplate.BOOKING_CONFIRMED, confirmed(), null).orElseThrow();
+        UUID welcome = outbox.enqueue("ravi@test.in", EmailTemplate.WELCOME, Map.of("name", "Ravi"));
+        jdbc.update("update email_outbox set send_after = now() - interval '1 hour' where id = ?", broken);
+
+        dispatcher("re_test_key", List.of(failingProvider())).dispatchBatch();
+
+        assertThat(row(broken).get("status")).isEqualTo("PENDING");
+        assertThat(row(broken).get("attempts")).isEqualTo(1);
+        assertThat(row(broken).get("last_error")).asString().contains("pdf boom");
+        assertThat(row(welcome).get("status")).isEqualTo("SENT");
+    }
+
+    @Test
+    void lastAttemptSendsWithoutTheAttachment() {
+        UUID id = outbox.enqueue("asha@test.in", EmailTemplate.BOOKING_CONFIRMED, confirmed(), null).orElseThrow();
+        jdbc.update("update email_outbox set attempts = 7 where id = ?", id);
+
+        dispatcher("re_test_key", List.of(failingProvider())).dispatchBatch();
+
+        assertThat(row(id).get("status")).isEqualTo("SENT");
+        assertThat(resend.received().get(0).body()).doesNotContain("attachments");
+    }
 }

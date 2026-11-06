@@ -181,8 +181,9 @@ public class EmailRenderer {
     private RenderedEmail bookingExpired(Map<String, ?> data) {
         String title = str(data.get("title"), "your event");
         return build("Your checkout for " + title + " expired", "Hi " + str(firstName(data.get("attendeeName")), "there"),
-                "We held your tickets for a few minutes, but the payment didn't complete, so they were released. "
-                        + "No money was taken. If tickets are still available you can book again.",
+                "We held your tickets for a few minutes, but the payment didn't complete in time, so they were released. "
+                        + "If a payment did go through, we'll confirm your tickets or refund you automatically. "
+                        + "If tickets are still available you can book again.",
                 null, eventDetails(data), "Book again", webBaseUrl + "/events/" + str(data.get("slug"), ""));
     }
 

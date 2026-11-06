@@ -113,4 +113,22 @@ class TicketPdfRendererTest extends PostgresIntegrationTest {
         assertThat(documents.ticketPdf(b.id())).isEmpty();
         assertThat(documents.invoicePdf(b.id())).isEmpty();
     }
+
+    @Test
+    void longTitleAndTermsStayOnOnePagePerTicket() throws Exception {
+        String title = "The Grand Hyderabad Winter Music, Food and Arts Festival ".repeat(3).substring(0, 140);
+        String terms = ("No re-entry.\nCarry a valid photo ID.\nOutside food not allowed. ").repeat(12).substring(0, 600);
+        List<TicketPage> pages = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            pages.add(new TicketPage(title, OffsetDateTime.parse("2026-11-14T13:00:00Z"), "Nirvana Convention Centre, Hyderabad",
+                    "Asha Rao", "General Admission", 49900, "SP-AAAA-" + (2000 + i), "SP-ABC234", "VALID", "token-" + i, terms));
+        }
+        assertThat(new PdfReader(renderer.render(pages)).getNumberOfPages()).isEqualTo(20);
+    }
+
+    @Test
+    void nameOnlyInAnotherScriptFallsBack() throws Exception {
+        byte[] pdf = renderer.render(List.of(page("राव", "దీపావళి", 1)));
+        assertThat(text(pdf)).contains("Ticket holder").contains("SP-AAAA-2001");
+    }
 }

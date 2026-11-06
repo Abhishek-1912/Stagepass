@@ -141,4 +141,11 @@ class EmailRendererTest {
         RenderedEmail email = renderer.render(EmailTemplate.BOOKING_EXPIRED, booking(Map.of("title", "<b>x</b>")));
         assertThat(email.html()).contains("&lt;b&gt;x&lt;/b&gt;").doesNotContain("<b>x</b>");
     }
+
+    @Test
+    void expiredEmailDoesNotPromiseNoCharge() {
+        RenderedEmail email = renderer.render(EmailTemplate.BOOKING_EXPIRED, booking(Map.of()));
+        assertThat(email.text()).doesNotContain("No money was taken")
+                .contains("If a payment did go through, we'll confirm your tickets or refund you automatically");
+    }
 }

@@ -32,6 +32,7 @@ public class EmailDispatcher {
     private final ResendClient client;
     private final EmailRenderer renderer;
     private final java.util.List<EmailAttachmentProvider> attachmentProviders;
+    private final TransactionTemplate attachmentTx;
     private final AtomicBoolean warnedUnconfigured = new AtomicBoolean();
 
     public EmailDispatcher(JdbcTemplate jdbc, PlatformTransactionManager txManager, ResendClient client,
@@ -39,6 +40,9 @@ public class EmailDispatcher {
         this.attachmentProviders = attachmentProviders;
         this.jdbc = jdbc;
         this.tx = new TransactionTemplate(txManager);
+        this.attachmentTx = new TransactionTemplate(txManager);
+        this.attachmentTx.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.attachmentTx.setReadOnly(true);
         this.client = client;
         this.renderer = renderer;
     }
@@ -79,13 +83,21 @@ public class EmailDispatcher {
             EmailTemplate template = EmailTemplate.valueOf((String) row.get("template"));
             Map<String, Object> data = JSON.readValue((String) row.get("payload"), new TypeReference<>() { });
             RenderedEmail email = renderer.render(template, data);
-            java.util.List<EmailAttachment> files = new java.util.ArrayList<>();
-            for (EmailAttachmentProvider p : attachmentProviders) {
-                if (p.supports(template)) {
-                    files.addAll(p.attachmentsFor(template, data));
+            java.util.List<EmailAttachment> files;
+            try {
+                files = attachments(template, data);
+            } catch (RuntimeException e) {
+                log.warn("Attachments for email {} failed (attempt {}): {}", id, attempts, e.getMessage());
+                files = null;
+                if (attempts < MAX_ATTEMPTS) {
+                    // Try again later; a broken attachment must not fail the email or hold up the queue.
+                    retryLater(id, attempts, "Attachment failed: " + e.getMessage());
+                    return true;
                 }
             }
-            result = client.send(id.toString(), (String) row.get("to_address"), email.withAttachments(files));
+            // On the last attempt, a missing attachment is better than no email.
+            result = client.send(id.toString(), (String) row.get("to_address"),
+                    files == null ? email : email.withAttachments(files));
         } catch (RuntimeException e) {
             result = new ResendClient.Result(ResendClient.Outcome.REJECTED, "Render failed: " + e.getMessage());
         }
@@ -98,17 +110,40 @@ public class EmailDispatcher {
                 if (attempts >= MAX_ATTEMPTS) {
                     fail(id, attempts, result.error());
                 } else {
-                    jdbc.update("""
-                            update email_outbox
-                            set attempts = ?, last_error = ?,
-                                send_after = now() + make_interval(mins => least(power(2, ? - 1)::int, 60))
-                            where id = ?
-                            """, attempts, result.error(), attempts, id);
+                    retryLater(id, attempts, result.error());
                 }
             }
             case REJECTED -> fail(id, attempts, result.error());
         }
         return true;
+    }
+
+    private void retryLater(UUID id, int attempts, String error) {
+        jdbc.update("""
+                update email_outbox
+                set attempts = ?, last_error = ?,
+                    send_after = now() + make_interval(mins => least(power(2, ? - 1)::int, 60))
+                where id = ?
+                """, attempts, error, attempts, id);
+    }
+
+    /**
+     * Builds attachments in their own read-only transaction, so a failure inside a provider (which may be
+     * transactional itself) can't mark the claim transaction rollback-only and stall the queue.
+     */
+    private List<EmailAttachment> attachments(EmailTemplate template, Map<String, Object> data) {
+        if (attachmentProviders.stream().noneMatch(p -> p.supports(template))) {
+            return List.of();
+        }
+        return attachmentTx.execute(s -> {
+            List<EmailAttachment> files = new java.util.ArrayList<>();
+            for (EmailAttachmentProvider p : attachmentProviders) {
+                if (p.supports(template)) {
+                    files.addAll(p.attachmentsFor(template, data));
+                }
+            }
+            return files;
+        });
     }
 
     private void fail(UUID id, int attempts, String error) {
