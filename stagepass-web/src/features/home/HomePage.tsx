@@ -16,6 +16,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { placeholderImages } from '@/lib/images'
+import { HomeFeeds } from './HomeFeeds'
 
 const categories = [
   { slug: 'music', name: 'Music', icon: Music },
@@ -138,6 +139,8 @@ export function HomePage() {
           ))}
         </ul>
       </section>
+
+      <HomeFeeds />
 
       <section className="mx-auto max-w-7xl px-4 pt-16 sm:px-6">
         <div className="bg-gradient-sunset relative overflow-hidden rounded-3xl px-6 py-12 text-white sm:px-12">
