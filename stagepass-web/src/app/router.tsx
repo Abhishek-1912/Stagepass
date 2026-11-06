@@ -14,6 +14,7 @@ import { RequireAuth } from '@/features/auth/RequireAuth'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { BookingDetailPage } from '@/features/bookings/BookingDetailPage'
 import { MyBookingsPage } from '@/features/bookings/MyBookingsPage'
+import { TicketViewPage } from '@/features/bookings/TicketViewPage'
 import { CheckoutPage, ResumeCheckoutPage } from '@/features/checkout/CheckoutPage'
 import { ExplorePage } from '@/features/discovery/ExplorePage'
 import { EventPage } from '@/features/event/EventPage'
@@ -98,6 +99,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireAuth>
             <BookingDetailPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'account/bookings/:id/tickets/:ticketId',
+        element: (
+          <RequireAuth>
+            <TicketViewPage />
           </RequireAuth>
         ),
       },

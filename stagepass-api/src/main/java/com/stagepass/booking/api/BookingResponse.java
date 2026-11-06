@@ -20,8 +20,10 @@ public record BookingResponse(UUID id, String code, String status, UUID eventId,
             String companyName) {
     }
 
+    /** {@code qrToken}: signed entry code, only for live tickets of a confirmed booking (spec 8.5). */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record TicketLine(UUID id, String code, UUID ticketTypeId, String ticketTypeName, String holderName,
-            String status) {
+            String status, String qrToken) {
     }
 
     /**

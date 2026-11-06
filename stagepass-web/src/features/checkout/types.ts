@@ -41,6 +41,8 @@ export interface TicketLine {
   ticketTypeName: string
   holderName: string
   status: 'VALID' | 'CHECKED_IN' | 'CANCELLED' | 'REFUNDED'
+  /** Signed entry code; only on live tickets of a confirmed booking. */
+  qrToken?: string
 }
 
 export interface RefundLine {

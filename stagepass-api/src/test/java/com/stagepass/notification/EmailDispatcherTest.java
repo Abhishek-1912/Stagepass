@@ -1,5 +1,7 @@
 package com.stagepass.notification;
 
+import com.stagepass.notification.service.EmailAttachment;
+import com.stagepass.notification.service.EmailAttachmentProvider;
 import com.stagepass.notification.service.EmailDispatcher;
 import com.stagepass.notification.service.EmailOutbox;
 import com.stagepass.notification.service.EmailRenderer;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -49,7 +52,12 @@ class EmailDispatcherTest extends PostgresIntegrationTest {
 
     private EmailDispatcher dispatcher(String apiKey) {
         ResendProperties props = new ResendProperties(apiKey, "Stagepass <onboarding@resend.dev>", resend.baseUrl());
-        return new EmailDispatcher(jdbc, txManager, new ResendClient(props), renderer);
+        return dispatcher(apiKey, List.of());
+    }
+
+    private EmailDispatcher dispatcher(String apiKey, List<EmailAttachmentProvider> providers) {
+        ResendProperties props = new ResendProperties(apiKey, "Stagepass <onboarding@resend.dev>", resend.baseUrl());
+        return new EmailDispatcher(jdbc, txManager, new ResendClient(props), renderer, providers);
     }
 
     private Map<String, Object> row(UUID id) {
@@ -127,5 +135,99 @@ class EmailDispatcherTest extends PostgresIntegrationTest {
 
         assertThat(dispatcher("re_test_key").dispatchBatch()).isZero();
         assertThat(row(id).get("status")).isEqualTo("PENDING");
+    }
+
+    private static EmailAttachmentProvider provider(List<EmailAttachment> files) {
+        return new EmailAttachmentProvider() {
+            @Override
+            public boolean supports(EmailTemplate t) {
+                return t == EmailTemplate.BOOKING_CONFIRMED;
+            }
+
+            @Override
+            public List<EmailAttachment> attachmentsFor(EmailTemplate t, Map<String, ?> data) {
+                return files;
+            }
+        };
+    }
+
+    private static Map<String, Object> confirmed() {
+        return Map.of("bookingId", UUID.randomUUID().toString(), "bookingCode", "SP-ABC234", "title", "Sunburn Goa",
+                "slug", "sunburn-goa", "startsAt", "2026-11-14T13:00:00Z", "venue", "Vagator Beach, Goa",
+                "attendeeName", "Asha Rao", "tickets", List.of(Map.of("code", "SP-AAAA-2222", "type", "General")),
+                "totalPaise", 105104);
+    }
+
+    @Test
+    void sameDedupeKeyQueuesOnce() {
+        assertThat(outbox.enqueue("a@test.in", EmailTemplate.WELCOME, Map.of(), "welcome:once")).isPresent();
+        assertThat(outbox.enqueue("a@test.in", EmailTemplate.WELCOME, Map.of(), "welcome:once")).isEmpty();
+        assertThat(jdbc.queryForObject("select count(*) from email_outbox where dedupe_key = 'welcome:once'", Integer.class))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void providerAttachmentIsAddedAtSendTime() {
+        UUID id = outbox.enqueue("asha@test.in", EmailTemplate.BOOKING_CONFIRMED, confirmed(), null).orElseThrow();
+        byte[] pdf = "%PDF-1.4 fake".getBytes();
+
+        dispatcher("re_test_key", List.of(provider(List.of(new EmailAttachment("stagepass-SP-ABC234.pdf", pdf)))))
+                .dispatchBatch();
+
+        assertThat(row(id).get("status")).isEqualTo("SENT");
+        assertThat(resend.received().get(0).body()).contains("\"filename\":\"stagepass-SP-ABC234.pdf\"")
+                .contains(java.util.Base64.getEncoder().encodeToString(pdf));
+    }
+
+    @Test
+    void missingAttachmentStillSends() {
+        UUID id = outbox.enqueue("asha@test.in", EmailTemplate.BOOKING_CONFIRMED, confirmed(), null).orElseThrow();
+
+        dispatcher("re_test_key", List.of(provider(List.of()))).dispatchBatch();
+
+        assertThat(row(id).get("status")).isEqualTo("SENT");
+        assertThat(resend.received().get(0).body()).doesNotContain("attachments");
+    }
+
+    /** A provider that fails inside a transaction joined from the dispatcher (as a @Transactional PDF builder would). */
+    private EmailAttachmentProvider failingProvider() {
+        return new EmailAttachmentProvider() {
+            @Override
+            public boolean supports(EmailTemplate t) {
+                return t == EmailTemplate.BOOKING_CONFIRMED;
+            }
+
+            @Override
+            public List<EmailAttachment> attachmentsFor(EmailTemplate t, Map<String, ?> data) {
+                return new org.springframework.transaction.support.TransactionTemplate(txManager).execute(s -> {
+                    throw new IllegalStateException("pdf boom");
+                });
+            }
+        };
+    }
+
+    @Test
+    void attachmentFailureIsRetriedAndDoesNotBlockOtherEmails() {
+        UUID broken = outbox.enqueue("asha@test.in", EmailTemplate.BOOKING_CONFIRMED, confirmed(), null).orElseThrow();
+        UUID welcome = outbox.enqueue("ravi@test.in", EmailTemplate.WELCOME, Map.of("name", "Ravi"));
+        jdbc.update("update email_outbox set send_after = now() - interval '1 hour' where id = ?", broken);
+
+        dispatcher("re_test_key", List.of(failingProvider())).dispatchBatch();
+
+        assertThat(row(broken).get("status")).isEqualTo("PENDING");
+        assertThat(row(broken).get("attempts")).isEqualTo(1);
+        assertThat(row(broken).get("last_error")).asString().contains("pdf boom");
+        assertThat(row(welcome).get("status")).isEqualTo("SENT");
+    }
+
+    @Test
+    void lastAttemptSendsWithoutTheAttachment() {
+        UUID id = outbox.enqueue("asha@test.in", EmailTemplate.BOOKING_CONFIRMED, confirmed(), null).orElseThrow();
+        jdbc.update("update email_outbox set attempts = 7 where id = ?", id);
+
+        dispatcher("re_test_key", List.of(failingProvider())).dispatchBatch();
+
+        assertThat(row(id).get("status")).isEqualTo("SENT");
+        assertThat(resend.received().get(0).body()).doesNotContain("attachments");
     }
 }

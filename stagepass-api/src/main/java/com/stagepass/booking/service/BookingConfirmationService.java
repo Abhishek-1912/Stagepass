@@ -40,10 +40,11 @@ public class BookingConfirmationService {
     private final InvoiceService invoices;
     private final AuditLogService audit;
     private final JdbcTemplate jdbc;
+    private final BookingEmails emails;
     private final Clock clock;
 
     public BookingConfirmationService(BookingRepository bookings, EventRepository events, InventoryService inventory,
-            TicketIssuer issuer, LedgerService ledger, InvoiceService invoices, AuditLogService audit, JdbcTemplate jdbc,
+            TicketIssuer issuer, LedgerService ledger, InvoiceService invoices, AuditLogService audit, JdbcTemplate jdbc, BookingEmails emails,
             Clock clock) {
         this.bookings = bookings;
         this.events = events;
@@ -53,6 +54,7 @@ public class BookingConfirmationService {
         this.invoices = invoices;
         this.audit = audit;
         this.jdbc = jdbc;
+        this.emails = emails;
         this.clock = clock;
     }
 
@@ -116,7 +118,8 @@ public class BookingConfirmationService {
 
         Event event = events.findById(b.getEventId()).orElseThrow();
         ledger.recordSale(b, event.getOrganizer().getId());
-        invoices.issueFor(b);
+        String invoiceNumber = invoices.issueFor(b).map(i -> i.getNumber()).orElse(null);
+        emails.confirmed(b, invoiceNumber);
         jdbc.update("update events set popularity_score = popularity_score + ? where id = ?", quantity, b.getEventId());
         audit.record(b.getUserId(), "BOOKING_CONFIRMED", "booking", b.getId().toString(), null, auditDetails);
     }

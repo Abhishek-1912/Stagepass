@@ -95,6 +95,10 @@ order; the API confirms only after fetching the payment from Razorpay (exact amo
 are released every minute. A payment that arrives after its hold ended is confirmed if tickets are still free,
 otherwise refunded in full automatically.
 
+Tickets: each live ticket shows a signed QR (`QR_SECRET`) in My tickets, with a full-screen view for the door; the
+ticket PDF and the GST invoice PDF download from the booking page. Booking, refund and event-change emails are queued
+in `email_outbox` (one per event, deduplicated) and the confirmation email carries the ticket PDF.
+
 ## Test accounts
 
 Create these in Supabase → Authentication → Users → Add user, with **Auto Confirm User** ticked:
@@ -124,7 +128,7 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 | `WEB_BASE_URL` | yes | Public URL of the web app |
 | `CORS_ALLOWED_ORIGINS` | no | Comma-separated; defaults to `WEB_BASE_URL` |
 | `BOOTSTRAP_ADMIN_EMAILS` | no | Comma-separated emails granted `ADMIN` on first sign-in |
-| `QR_SECRET` | yes | Random secret (32+ chars) used to sign ticket QR codes |
+| `QR_SECRET` | yes | Random secret (32+ chars) used to sign ticket QR codes; the API refuses to start without it, and changing it invalidates every issued QR |
 | `PAYOUT_ENCRYPTION_KEY` | yes | Base64 32-byte key encrypting organizer bank details |
 | `RESEND_API_KEY` | for email | Resend API key (sending access) for app emails |
 | `RESEND_FROM` | no | Sender, e.g. `Stagepass <no-reply@yourdomain>`; default `onboarding@resend.dev` |

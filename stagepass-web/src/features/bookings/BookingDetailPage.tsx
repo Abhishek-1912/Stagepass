@@ -1,4 +1,5 @@
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock, MapPin, QrCode } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock, Download, MapPin, QrCode } from 'lucide-react'
+import { toast } from 'sonner'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,17 @@ import { formatPaiseExact } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { useMyBooking } from './api'
 import { BookingStatusBadge } from './BookingStatusBadge'
+import { downloadFile } from './downloads'
 import { RefundDialog } from './RefundDialog'
+import { TicketQr } from './TicketQr'
+
+async function save(path: string, fallbackName: string) {
+  try {
+    await downloadFile(path, fallbackName)
+  } catch (e) {
+    toast.error(isApiError(e) ? e.detail : 'Could not download the file')
+  }
+}
 
 const REFUND_STATUS: Record<RefundLine['status'], string> = {
   REQUESTED: 'Starting',
@@ -150,27 +161,48 @@ export function BookingDetailPage() {
           <h2 className="font-sans text-lg font-semibold tracking-normal">Your tickets</h2>
           <ul className="divide-y divide-border">
             {b.tickets.map((t) => (
-              <li key={t.id} className={cn('flex items-center justify-between gap-3 py-3', t.status !== 'VALID' && 'opacity-60')}>
-                <div>
-                  <p className="font-mono font-semibold">{t.code}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t.ticketTypeName} · {t.holderName}
-                  </p>
+              <li key={t.id} className={cn('flex items-center justify-between gap-3 py-3', t.status !== 'VALID' && t.status !== 'CHECKED_IN' && 'opacity-60')}>
+                <div className="flex items-center gap-3">
+                  {t.qrToken && (
+                    <Link to={`/account/bookings/${b.id}/tickets/${t.id}`} aria-label={`Show ticket ${t.code}`}>
+                      <TicketQr token={t.qrToken} size={64} label={`QR code for ${t.code}`} className="border border-border p-1" />
+                    </Link>
+                  )}
+                  <div>
+                    <p className="font-mono font-semibold">{t.code}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t.ticketTypeName} · {t.holderName}
+                    </p>
+                  </div>
                 </div>
                 <span className="text-sm font-medium">{TICKET_STATUS[t.status]}</span>
               </li>
             ))}
           </ul>
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <QrCode className="size-4" aria-hidden /> QR codes for entry are coming soon. Your booking code works at the venue meanwhile.
-          </p>
+          {b.tickets.some((t) => t.qrToken) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" className="rounded-full" onClick={() => save(`/me/bookings/${b.id}/tickets.pdf`, `stagepass-${b.code}.pdf`)}>
+                <Download className="size-4" aria-hidden /> Download tickets (PDF)
+              </Button>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <QrCode className="size-4" aria-hidden /> Tap a QR to show it full screen at the entrance.
+              </p>
+            </div>
+          )}
         </section>
       )}
 
       <section className="space-y-3 rounded-3xl border border-border bg-card p-6">
         <h2 className="font-sans text-lg font-semibold tracking-normal">Payment</h2>
         <PriceSummary lines={b.items} price={b.price} />
-        {b.invoiceNumber && <p className="text-xs text-muted-foreground">GST invoice {b.invoiceNumber}</p>}
+        {b.invoiceNumber && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">GST invoice {b.invoiceNumber}</p>
+            <Button variant="ghost" size="sm" className="rounded-full" onClick={() => save(`/me/bookings/${b.id}/invoice.pdf`, 'stagepass-invoice.pdf')}>
+              <Download className="size-4" aria-hidden /> Download invoice
+            </Button>
+          </div>
+        )}
       </section>
 
       <RefundSection booking={b} />

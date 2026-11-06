@@ -38,10 +38,12 @@ public class RefundGateway {
     private final PaymentRepository payments;
     private final RazorpayClient razorpay;
     private final AuditLogService audit;
+    private final BookingEmails emails;
     private final TransactionTemplate tx;
 
     public RefundGateway(RefundRepository refunds, PaymentRepository payments, RazorpayClient razorpay,
-            AuditLogService audit, PlatformTransactionManager txManager) {
+            AuditLogService audit, PlatformTransactionManager txManager, BookingEmails emails) {
+        this.emails = emails;
         this.refunds = refunds;
         this.payments = payments;
         this.razorpay = razorpay;
@@ -159,6 +161,10 @@ public class RefundGateway {
             r.setNeedsRetry(false);
         }
         refunds.save(r);
+        if (status == RefundStatus.PROCESSED && r.getKind() != com.stagepass.booking.domain.RefundKind.CANCELLATION) {
+            // Cancellation refunds were announced by the event-cancelled email when they were issued.
+            emails.refundProcessed(r);
+        }
         if (status == RefundStatus.PROCESSED || status == RefundStatus.FAILED) {
             audit.record(null, status == RefundStatus.PROCESSED ? "REFUND_PROCESSED" : "REFUND_FAILED", "refund",
                     r.getId().toString(), null, failure == null ? Map.of("amountPaise", r.getAmountPaise())

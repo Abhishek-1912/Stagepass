@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -50,6 +51,33 @@ class MyBookingsTest extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.items[0].ticketCount").value(2));
         mvc.perform(get("/api/v1/me/bookings?scope=later").header("Authorization", buyer.bearer()))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Autowired
+    com.stagepass.ticketing.service.QrTokens qrTokens;
+
+    @Test
+    void liveTicketsCarryQrTokens() throws Exception {
+        TestUser buyer = users.attendee();
+        LiveEvent e = support.liveEvent(49900, 10);
+        jdbc.update("update events set refund_policy = 'UNTIL_HOURS_BEFORE', refund_cutoff_hours = 48 where id = ?", e.eventId());
+        BookingResponse b = support.confirmed(e, 2, buyer);
+        var first = b.tickets().get(0);
+        var second = b.tickets().get(1);
+        assertThat(qrTokens.verify(first.qrToken())).get()
+                .extracting(c -> c.ticketId()).isEqualTo(first.id());
+        assertThat(qrTokens.verify(second.qrToken())).get().extracting(c -> c.eventId()).isEqualTo(e.eventId());
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/v1/me/bookings/{id}/refunds", b.id()).header("Authorization", buyer.bearer())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"ticketIds\":[\"" + first.id() + "\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tickets[?(@.id == '" + first.id() + "')].qrToken").isEmpty())
+                .andExpect(jsonPath("$.tickets[?(@.id == '" + second.id() + "')].qrToken").isNotEmpty());
+
+        BookingResponse pending = support.book(support.liveEvent(49900, 10), 1, buyer);
+        assertThat(pending.tickets()).isEmpty();
     }
 
     @Test

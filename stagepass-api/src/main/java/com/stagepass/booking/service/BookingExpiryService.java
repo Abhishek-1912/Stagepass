@@ -17,8 +17,11 @@ public class BookingExpiryService {
     private final BookingRepository bookings;
     private final InventoryService inventory;
     private final AuditLogService audit;
+    private final BookingEmails emails;
 
-    public BookingExpiryService(BookingRepository bookings, InventoryService inventory, AuditLogService audit) {
+    public BookingExpiryService(BookingRepository bookings, InventoryService inventory, AuditLogService audit,
+            BookingEmails emails) {
+        this.emails = emails;
         this.bookings = bookings;
         this.inventory = inventory;
         this.audit = audit;
@@ -37,6 +40,11 @@ public class BookingExpiryService {
         b.setCancelReason(reason);
         bookings.saveAndFlush(b);
         audit.record(null, "BOOKING_EXPIRED", "booking", b.getId().toString(), null, Map.of("reason", reason));
+        if ("HOLD_EXPIRED".equals(reason)) {
+            emails.expired(b);
+        } else if ("EVENT_CANCELLED".equals(reason)) {
+            emails.eventCancelled(b, 0);
+        }
         return true;
     }
 }

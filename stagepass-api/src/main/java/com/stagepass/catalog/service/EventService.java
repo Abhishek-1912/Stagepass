@@ -118,7 +118,7 @@ public class EventService {
 
     /**
      * Spec §8.4a: a date, time or venue change on a live event lets ticket holders self-refund in full for 7 days.
-     * (Plan 4 adds the emails to ticket holders.)
+     * Ticket holders are emailed through {@link EventChangeHandler}s.
      */
     public void openRescheduleWindowIfLive(Event event, UUID actorId, Map<String, Object> before, Map<String, Object> after) {
         rescheduleWindow.openIfLive(event, actorId, before, after);

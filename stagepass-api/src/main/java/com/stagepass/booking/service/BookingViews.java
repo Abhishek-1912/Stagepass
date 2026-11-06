@@ -16,6 +16,7 @@ import com.stagepass.common.config.CompanyProperties;
 import com.stagepass.common.error.ApiException;
 import com.stagepass.payment.repository.PaymentRepository;
 import com.stagepass.payment.service.RazorpayClient;
+import com.stagepass.ticketing.service.QrTokens;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -42,10 +43,12 @@ public class BookingViews {
     private final RefundRepository refunds;
     private final RefundEligibility eligibility;
     private final Clock clock;
+    private final QrTokens qrTokens;
 
     public BookingViews(EventRepository events, TicketTypeRepository types, PaymentRepository payments,
             RazorpayClient razorpay, CompanyProperties company, InvoiceRepository invoices, RefundRepository refunds,
-            RefundEligibility eligibility, Clock clock) {
+            RefundEligibility eligibility, Clock clock, QrTokens qrTokens) {
+        this.qrTokens = qrTokens;
         this.refunds = refunds;
         this.eligibility = eligibility;
         this.clock = clock;
@@ -71,7 +74,7 @@ public class BookingViews {
                 .toList();
         List<BookingResponse.TicketLine> tickets = b.getTickets().stream()
                 .map(t -> new BookingResponse.TicketLine(t.getId(), t.getCode(), t.getTicketTypeId(),
-                        name.apply(t.getTicketTypeId()), t.getHolderName(), t.getStatus().name()))
+                        name.apply(t.getTicketTypeId()), t.getHolderName(), t.getStatus().name(), qrToken(b, t)))
                 .toList();
         int count = b.getItems().stream().mapToInt(i -> i.getQuantity()).sum();
         PriceBreakdown price = new PriceBreakdown(b.getSubtotalPaise(), b.getFeePaise(), b.getFeeGstPaise(),
@@ -90,6 +93,12 @@ public class BookingViews {
                 e.getStartsAt(), venueName, city, items, price, b.getHoldExpiresAt(), checkout, tickets,
                 b.getAttendeeName(), b.getAttendeeEmail(),
                 invoices.findByBookingId(b.getId()).map(i -> i.getNumber()).orElse(null), refundInfo(b, e));
+    }
+
+    private String qrToken(Booking b, com.stagepass.booking.domain.Ticket t) {
+        boolean bookingLive = b.getStatus() == BookingStatus.CONFIRMED || b.getStatus() == BookingStatus.PARTIALLY_REFUNDED;
+        boolean ticketLive = t.getStatus() == TicketStatus.VALID || t.getStatus() == TicketStatus.CHECKED_IN;
+        return bookingLive && ticketLive ? qrTokens.sign(t.getId(), t.getEventId(), t.getQrNonce()) : null;
     }
 
     private static final Set<BookingStatus> AFTER_SALE = EnumSet.of(BookingStatus.CONFIRMED,
