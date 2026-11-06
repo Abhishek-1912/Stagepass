@@ -8,12 +8,24 @@ import { RequireAuth } from '@/features/auth/RequireAuth'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { HomePage } from '@/features/home/HomePage'
 import { NotFoundPage } from '@/features/misc/NotFoundPage'
+import { BecomeOrganizerPage } from '@/features/organizer/BecomeOrganizerPage'
+import { OrganizerHomePage } from '@/features/organizer/OrganizerHomePage'
+import { OrganizerLayout } from '@/features/organizer/OrganizerLayout'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  {
+    path: '/organizer',
+    element: (
+      <RequireAuth>
+        <OrganizerLayout />
+      </RequireAuth>
+    ),
+    children: [{ index: true, element: <OrganizerHomePage /> }],
+  },
   {
     element: <PublicLayout />,
     children: [
@@ -23,6 +35,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireAuth>
             <AccountPlaceholderPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'become-organizer',
+        element: (
+          <RequireAuth>
+            <BecomeOrganizerPage />
           </RequireAuth>
         ),
       },
