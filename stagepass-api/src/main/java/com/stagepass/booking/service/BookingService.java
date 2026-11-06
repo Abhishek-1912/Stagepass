@@ -1,6 +1,7 @@
 package com.stagepass.booking.service;
 
 import com.stagepass.booking.api.BookingResponse;
+import com.stagepass.booking.api.BookingSummary;
 import com.stagepass.booking.api.CreateBookingRequest;
 import com.stagepass.booking.api.QuoteRequest;
 import com.stagepass.booking.api.QuoteResponse;
@@ -8,6 +9,8 @@ import com.stagepass.booking.domain.Booking;
 import com.stagepass.booking.domain.BookingItem;
 import com.stagepass.booking.domain.BookingStatus;
 import com.stagepass.booking.repository.BookingRepository;
+import com.stagepass.common.api.PageRequests;
+import com.stagepass.common.api.PageResponse;
 import com.stagepass.common.config.StagepassProperties;
 import com.stagepass.common.error.ApiException;
 import com.stagepass.common.error.ErrorCode;
@@ -19,6 +22,10 @@ import com.stagepass.payment.service.RazorpayModels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -26,6 +33,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,11 +63,13 @@ public class BookingService {
     private final Clock clock;
     private final TransactionTemplate tx;
     private final TransactionTemplate readTx;
+    private final NamedParameterJdbcTemplate sql;
 
     public BookingService(BookingRules rules, BookingRepository bookings, PaymentRepository payments,
             InventoryService inventory, BookingExpiryService expiry, BookingConfirmationService confirmation,
             BookingViews views, RazorpayClient razorpay, StagepassProperties props, Clock clock,
-            PlatformTransactionManager txManager) {
+            PlatformTransactionManager txManager, NamedParameterJdbcTemplate sql) {
+        this.sql = sql;
         this.rules = rules;
         this.bookings = bookings;
         this.payments = payments;
@@ -124,6 +134,43 @@ public class BookingService {
             payments.save(p);
         });
         return new Result(view(bookingId), true);
+    }
+
+    /** My bookings: {@code upcoming} (event not over, soonest first) or {@code past} (latest first). Abandoned checkouts are hidden. */
+    public PageResponse<BookingSummary> list(UUID userId, String scope, Integer page, Integer size) {
+        String s = scope == null || scope.isBlank() ? "upcoming" : scope;
+        if (!s.equals("upcoming") && !s.equals("past")) {
+            throw FieldErrors.single("scope", "must be upcoming or past");
+        }
+        boolean upcoming = s.equals("upcoming");
+        Pageable p = PageRequests.of(page, size, Sort.unsorted());
+        String where = """
+                from bookings b join events e on e.id = b.event_id left join venues v on v.id = e.venue_id
+                where b.user_id = :user and b.status <> 'EXPIRED'
+                  and not (b.status = 'PENDING_PAYMENT' and b.hold_expires_at < now())
+                  and e.ends_at %s now()
+                """.formatted(upcoming ? ">=" : "<");
+        MapSqlParameterSource params = new MapSqlParameterSource("user", userId)
+                .addValue("limit", p.getPageSize()).addValue("offset", p.getOffset());
+        Long total = sql.queryForObject("select count(*) " + where, params, Long.class);
+        List<BookingSummary> items = sql.query("""
+                select b.id, b.code, b.status, e.title, e.slug, e.cover_image_url, e.starts_at, v.city, b.total_paise,
+                       (select coalesce(sum(i.quantity), 0) from booking_items i where i.booking_id = b.id) as tickets
+                """ + where + " order by e.starts_at " + (upcoming ? "asc" : "desc") + ", b.created_at desc"
+                + " limit :limit offset :offset", params,
+                (rs, n) -> new BookingSummary(rs.getObject("id", UUID.class), rs.getString("code"), rs.getString("status"),
+                        rs.getString("title"), rs.getString("slug"), rs.getString("cover_image_url"),
+                        rs.getObject("starts_at", OffsetDateTime.class), rs.getString("city"), rs.getInt("tickets"),
+                        rs.getLong("total_paise")));
+        long t = total == null ? 0 : total;
+        return new PageResponse<>(items, p.getPageNumber(), p.getPageSize(), t,
+                (int) ((t + p.getPageSize() - 1) / p.getPageSize()));
+    }
+
+    /** A booking of the signed-in user, or 404. */
+    public BookingResponse detail(UUID userId, UUID bookingId) {
+        return readTx.execute(s -> views.view(bookings.findByIdAndUserId(bookingId, userId)
+                .orElseThrow(() -> ApiException.notFound("Booking"))));
     }
 
     public BookingResponse view(UUID bookingId) {

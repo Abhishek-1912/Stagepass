@@ -20,4 +20,7 @@ public interface RefundRepository extends JpaRepository<Refund, UUID> {
     Optional<Refund> findByRazorpayRefundId(String razorpayRefundId);
 
     List<Refund> findByBookingIdOrderByCreatedAtDesc(UUID bookingId);
+
+    @Query("select r from Refund r where r.bookingId in (select b.id from Booking b where b.eventId = :eventId) order by r.createdAt desc")
+    List<Refund> findByEventId(@Param("eventId") UUID eventId);
 }

@@ -3,6 +3,8 @@ package com.stagepass.booking;
 import com.stagepass.booking.api.BookingResponse;
 import com.stagepass.booking.api.CreateBookingRequest;
 import com.stagepass.booking.service.BookingService;
+import com.stagepass.payment.service.PaymentService;
+import org.springframework.context.annotation.Lazy;
 import com.stagepass.support.CatalogFixtures;
 import com.stagepass.support.SharedRazorpay;
 import com.stagepass.support.TestUsers;
@@ -19,11 +21,14 @@ public class BookingTestSupport {
     private final CatalogFixtures catalog;
     private final TestUsers users;
     private final BookingService bookings;
+    private final PaymentService payments;
 
-    public BookingTestSupport(CatalogFixtures catalog, TestUsers users, BookingService bookings) {
+    public BookingTestSupport(CatalogFixtures catalog, TestUsers users, BookingService bookings,
+            @Lazy PaymentService payments) {
         this.catalog = catalog;
         this.users = users;
         this.bookings = bookings;
+        this.payments = payments;
     }
 
     public record LiveEvent(UUID eventId, UUID ticketTypeId, TestUsers.TestUser organizer) {
@@ -34,6 +39,16 @@ public class BookingTestSupport {
         return bookings.create(buyer.id(), "test-" + UUID.randomUUID(), new CreateBookingRequest(e.eventId(),
                 List.of(new CreateBookingRequest.Item(e.ticketTypeId(), qty)), "Asha Rao", "asha@test.in", null,
                 "Telangana")).booking();
+    }
+
+    /** A paid booking confirmed through the real settle path (as the verify call or webhook would). */
+    public BookingResponse confirmed(LiveEvent e, int qty, TestUsers.TestUser buyer) {
+        BookingResponse pending = book(e, qty, buyer);
+        if (pending.checkout() == null) {
+            return pending;
+        }
+        payments.settle(capturedPayment(pending));
+        return bookings.detail(buyer.id(), pending.id());
     }
 
     /** Scripts a captured Razorpay payment for the booking's order and returns its id. */

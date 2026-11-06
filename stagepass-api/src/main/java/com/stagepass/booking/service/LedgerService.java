@@ -39,6 +39,17 @@ public class LedgerService {
         }
     }
 
+    /** A refund that Razorpay rejected: undo {@link #recordRefund} so the balance matches the tickets again. */
+    public void recordRefundReversal(Booking b, UUID organizerId, long ticketPortionPaise, long commissionPortionPaise) {
+        if (ticketPortionPaise > 0) {
+            post(organizerId, b, LedgerType.ADJUSTMENT, ticketPortionPaise, "Failed refund reversed on " + b.getCode());
+        }
+        if (commissionPortionPaise > 0) {
+            post(organizerId, b, LedgerType.COMMISSION, -commissionPortionPaise,
+                    "Commission re-applied on " + b.getCode());
+        }
+    }
+
     private void post(UUID organizerId, Booking b, LedgerType type, long amountPaise, String note) {
         LedgerEntry e = new LedgerEntry();
         e.setOrganizerId(organizerId);

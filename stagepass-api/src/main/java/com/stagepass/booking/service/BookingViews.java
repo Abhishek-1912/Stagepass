@@ -5,6 +5,9 @@ import com.stagepass.booking.domain.Booking;
 import com.stagepass.booking.domain.BookingStatus;
 import com.stagepass.booking.domain.PriceBreakdown;
 import com.stagepass.booking.repository.InvoiceRepository;
+import com.stagepass.booking.repository.RefundRepository;
+import com.stagepass.booking.domain.Refund;
+import com.stagepass.booking.domain.TicketStatus;
 import com.stagepass.catalog.domain.Event;
 import com.stagepass.catalog.domain.TicketType;
 import com.stagepass.catalog.repository.EventRepository;
@@ -15,6 +18,9 @@ import com.stagepass.payment.repository.PaymentRepository;
 import com.stagepass.payment.service.RazorpayClient;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +39,16 @@ public class BookingViews {
     private final RazorpayClient razorpay;
     private final CompanyProperties company;
     private final InvoiceRepository invoices;
+    private final RefundRepository refunds;
+    private final RefundEligibility eligibility;
+    private final Clock clock;
 
     public BookingViews(EventRepository events, TicketTypeRepository types, PaymentRepository payments,
-            RazorpayClient razorpay, CompanyProperties company, InvoiceRepository invoices) {
+            RazorpayClient razorpay, CompanyProperties company, InvoiceRepository invoices, RefundRepository refunds,
+            RefundEligibility eligibility, Clock clock) {
+        this.refunds = refunds;
+        this.eligibility = eligibility;
+        this.clock = clock;
         this.invoices = invoices;
         this.events = events;
         this.types = types;
@@ -76,6 +89,30 @@ public class BookingViews {
         return new BookingResponse(b.getId(), b.getCode(), b.getStatus().name(), e.getId(), e.getTitle(), e.getSlug(),
                 e.getStartsAt(), venueName, city, items, price, b.getHoldExpiresAt(), checkout, tickets,
                 b.getAttendeeName(), b.getAttendeeEmail(),
-                invoices.findByBookingId(b.getId()).map(i -> i.getNumber()).orElse(null), null);
+                invoices.findByBookingId(b.getId()).map(i -> i.getNumber()).orElse(null), refundInfo(b, e));
+    }
+
+    private static final Set<BookingStatus> AFTER_SALE = EnumSet.of(BookingStatus.CONFIRMED,
+            BookingStatus.PARTIALLY_REFUNDED, BookingStatus.REFUNDED, BookingStatus.CANCELLED);
+
+    private BookingResponse.RefundInfo refundInfo(Booking b, Event e) {
+        if (!AFTER_SALE.contains(b.getStatus())) {
+            return null;
+        }
+        List<Refund> history = refunds.findByBookingIdOrderByCreatedAtDesc(b.getId());
+        Set<UUID> claimed = RefundEligibility.claimedTicketIds(history);
+        boolean ticketsLeft = b.getTickets().stream()
+                .anyMatch(t -> t.getStatus() == TicketStatus.VALID && !claimed.contains(t.getId()));
+        boolean open = ticketsLeft
+                && (b.getStatus() == BookingStatus.CONFIRMED || b.getStatus() == BookingStatus.PARTIALLY_REFUNDED);
+        RefundEligibility.Eligibility el = eligibility.forEvent(e, OffsetDateTime.now(clock));
+        List<BookingResponse.RefundLine> lines = history.stream()
+                .map(r -> new BookingResponse.RefundLine(r.getId(), r.getStatus().name(), r.getKind().name(),
+                        r.getAmountPaise(), r.getTicketIds().length,
+                        r.getStatus() == com.stagepass.booking.domain.RefundStatus.DECLINED ? r.getFailureReason() : null,
+                        r.getCreatedAt()))
+                .toList();
+        return new BookingResponse.RefundInfo(open && el.selfServe(), open && el.requestable(), el.kind(),
+                el.includesFee(), el.until(), el.reason(), lines);
     }
 }

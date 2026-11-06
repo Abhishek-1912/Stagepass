@@ -24,7 +24,15 @@ public record BookingResponse(UUID id, String code, String status, UUID eventId,
             String status) {
     }
 
-    /** Latest refund on the booking; filled in by the refund flow. */
-    public record RefundInfo(UUID id, String status, String kind, long amountPaise, OffsetDateTime createdAt) {
+    /**
+     * What the attendee can do now and what already happened. {@code selfServe}: a request refunds immediately;
+     * {@code requestable}: a request can be sent at all (to the organizer when not self-serve).
+     */
+    public record RefundInfo(boolean selfServe, boolean requestable, String kind, boolean includesFee,
+            OffsetDateTime until, String message, List<RefundLine> history) {
+    }
+
+    public record RefundLine(UUID id, String status, String kind, long amountPaise, int ticketCount, String note,
+            OffsetDateTime createdAt) {
     }
 }

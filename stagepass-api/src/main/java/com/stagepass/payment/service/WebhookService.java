@@ -1,6 +1,6 @@
 package com.stagepass.payment.service;
 
-import com.stagepass.booking.service.RefundGateway;
+import com.stagepass.booking.service.RefundService;
 import com.stagepass.common.audit.AuditLogService;
 import com.stagepass.common.error.ApiException;
 import com.stagepass.common.error.ErrorCode;
@@ -40,13 +40,13 @@ public class WebhookService {
     private final PaymentService paymentService;
     private final PaymentRepository payments;
     private final DisputeRepository disputes;
-    private final RefundGateway refunds;
+    private final RefundService refunds;
     private final AuditLogService audit;
     private final JdbcTemplate jdbc;
     private final TransactionTemplate tx;
 
     public WebhookService(RazorpaySignatures signatures, PaymentService paymentService, PaymentRepository payments,
-            DisputeRepository disputes, RefundGateway refunds, AuditLogService audit, JdbcTemplate jdbc,
+            DisputeRepository disputes, RefundService refunds, AuditLogService audit, JdbcTemplate jdbc,
             PlatformTransactionManager txManager) {
         this.signatures = signatures;
         this.paymentService = paymentService;

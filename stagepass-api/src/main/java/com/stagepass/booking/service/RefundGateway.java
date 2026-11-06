@@ -13,9 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -40,6 +42,8 @@ public class RefundGateway {
         this.razorpay = razorpay;
         this.audit = audit;
         this.tx = new TransactionTemplate(txManager);
+        // Also called from after-commit callbacks, where a joined transaction would never commit.
+        this.tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /** Asks Razorpay to refund a REQUESTED row. ₹0 rows (free bookings) complete without a gateway call. */
@@ -70,11 +74,14 @@ public class RefundGateway {
                 .ifPresent(r -> finish(r.getId(), RefundStatus.PROCESSED, razorpayRefundId, null)));
     }
 
-    /** Webhook {@code refund.failed}. */
-    public void onFailed(String razorpayRefundId, String reason) {
-        tx.executeWithoutResult(s -> refunds.findByRazorpayRefundId(razorpayRefundId)
-                .filter(r -> r.getStatus() != RefundStatus.PROCESSED && r.getStatus() != RefundStatus.FAILED)
-                .ifPresent(r -> finish(r.getId(), RefundStatus.FAILED, razorpayRefundId, reason)));
+    /** Webhook {@code refund.failed}; returns the refund it marked failed, if any (the caller restores its tickets). */
+    public Optional<UUID> onFailed(String razorpayRefundId, String reason) {
+        return tx.execute(s -> refunds.findByRazorpayRefundId(razorpayRefundId)
+                .filter(r -> r.getStatus() == RefundStatus.PROCESSING || r.getStatus() == RefundStatus.REQUESTED)
+                .map(r -> {
+                    finish(r.getId(), RefundStatus.FAILED, razorpayRefundId, reason);
+                    return r.getId();
+                }));
     }
 
     private RefundStatus finish(UUID refundId, RefundStatus status, String razorpayRefundId, String failure) {
