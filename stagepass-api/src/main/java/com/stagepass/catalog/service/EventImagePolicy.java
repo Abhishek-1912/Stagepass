@@ -5,14 +5,18 @@ import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
-/**
- * Decides whether an image URL may be attached to an event. Task 9 replaces the https-only check with the
- * Cloudinary folder lock.
- */
+/** Event images must be Cloudinary uploads in that event's own folder. */
 @Component
 public class EventImagePolicy {
 
+    private final ImageUrlPolicy urls;
+
+    public EventImagePolicy(ImageUrlPolicy urls) {
+        this.urls = urls;
+    }
+
     public void check(UUID eventId, String url, String field, FieldErrors errors) {
-        errors.addIf(!url.startsWith("https://"), field, "must be an https image URL");
+        errors.addIf(!urls.isOwned(url, ImageUrlPolicy.eventFolder(eventId)), field,
+                "Upload the image through Stagepass (jpg, png or webp)");
     }
 }

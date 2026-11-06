@@ -109,6 +109,7 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 | `PAYOUT_ENCRYPTION_KEY` | yes | Base64 32-byte key encrypting organizer bank details |
 | `RESEND_API_KEY` | for email | Resend API key (sending access) for app emails |
 | `RESEND_FROM` | no | Sender, e.g. `Stagepass <no-reply@yourdomain>`; default `onboarding@resend.dev` |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | for images | Cloudinary account for signed event-image and logo uploads |
 | `SPRING_PROFILES_ACTIVE` | prod | `prod` on Render (JSON logs) |
 
 ### Web (`stagepass-web`) — all public, bundled into the browser

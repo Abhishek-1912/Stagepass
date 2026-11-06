@@ -11,3 +11,8 @@ PAYOUT_ENCRYPTION_KEY=<base64-encoded 32-byte key>
 RESEND_API_KEY=
 # Sender address: must be on a domain verified in Resend, or onboarding@resend.dev for testing
 RESEND_FROM=Stagepass <onboarding@resend.dev>
+
+# Cloudinary (https://console.cloudinary.com > Settings > API Keys)
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=

@@ -1,6 +1,8 @@
 package com.stagepass.identity.service;
 
+import com.stagepass.catalog.service.ImageUrlPolicy;
 import com.stagepass.common.audit.AuditLogService;
+import com.stagepass.common.error.FieldErrors;
 import com.stagepass.common.crypto.PayoutCrypto;
 import com.stagepass.common.error.ApiException;
 import com.stagepass.common.error.ErrorCode;
@@ -28,15 +30,22 @@ public class OrganizerApplicationService {
     private final OrganizerRepository organizers;
     private final PayoutCrypto crypto;
     private final AuditLogService audit;
+    private final ImageUrlPolicy imageUrls;
 
-    public OrganizerApplicationService(OrganizerRepository organizers, PayoutCrypto crypto, AuditLogService audit) {
+    public OrganizerApplicationService(OrganizerRepository organizers, PayoutCrypto crypto, AuditLogService audit,
+            ImageUrlPolicy imageUrls) {
         this.organizers = organizers;
         this.crypto = crypto;
         this.audit = audit;
+        this.imageUrls = imageUrls;
     }
 
     @Transactional
     public ApplyResult apply(UUID userId, OrganizerApplicationRequest request) {
+        if (request.logoUrl() != null
+                && !imageUrls.isOwned(request.logoUrl(), ImageUrlPolicy.organizerFolder(userId))) {
+            throw FieldErrors.single("logoUrl", "Upload the logo through Stagepass (jpg, png or webp)");
+        }
         Optional<Organizer> existing = organizers.findByUserId(userId);
         Organizer organizer;
         boolean created;
