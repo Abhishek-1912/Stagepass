@@ -6,6 +6,8 @@ import com.stagepass.identity.domain.RoleName;
 import com.stagepass.identity.domain.UserStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.util.EnumSet;
@@ -49,6 +51,22 @@ public class RoleLookupService {
     }
 
     public void evict(UUID userId) {
+        cache.invalidate(userId);
+    }
+
+    /**
+     * Evicts once the current transaction commits (and immediately if there is none), so a concurrent request
+     * cannot re-cache the pre-change roles between the eviction and the commit.
+     */
+    public void evictAfterCommit(UUID userId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cache.invalidate(userId);
+                }
+            });
+        }
         cache.invalidate(userId);
     }
 
