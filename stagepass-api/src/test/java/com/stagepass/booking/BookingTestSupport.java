@@ -64,7 +64,11 @@ public class BookingTestSupport {
 
     /** A published event 10 days out with one extra ACTIVE type at {@code pricePaise} × {@code quantity}. */
     public LiveEvent liveEvent(long pricePaise, int quantity) {
-        TestUsers.TestUser org = users.approvedOrganizer();
+        return liveEvent(users.approvedOrganizer(), pricePaise, quantity);
+    }
+
+    /** As above, for a given organizer (several events under one organizer). */
+    public LiveEvent liveEvent(TestUsers.TestUser org, long pricePaise, int quantity) {
         UUID event = catalog.publishedEvent(org, "Booking test", OffsetDateTime.now().plusDays(10), "Bookcity", 100);
         UUID type = catalog.ticketType(event, pricePaise, quantity);
         return new LiveEvent(event, type, org);
