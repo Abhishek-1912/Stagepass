@@ -124,7 +124,7 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 | `WEB_BASE_URL` | yes | Public URL of the web app |
 | `CORS_ALLOWED_ORIGINS` | no | Comma-separated; defaults to `WEB_BASE_URL` |
 | `BOOTSTRAP_ADMIN_EMAILS` | no | Comma-separated emails granted `ADMIN` on first sign-in |
-| `QR_SECRET` | yes | Random secret (32+ chars) used to sign ticket QR codes |
+| `QR_SECRET` | yes | Random secret (32+ chars) used to sign ticket QR codes; the API refuses to start without it, and changing it invalidates every issued QR |
 | `PAYOUT_ENCRYPTION_KEY` | yes | Base64 32-byte key encrypting organizer bank details |
 | `RESEND_API_KEY` | for email | Resend API key (sending access) for app emails |
 | `RESEND_FROM` | no | Sender, e.g. `Stagepass <no-reply@yourdomain>`; default `onboarding@resend.dev` |
