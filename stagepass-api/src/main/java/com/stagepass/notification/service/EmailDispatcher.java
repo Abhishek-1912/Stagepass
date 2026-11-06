@@ -31,10 +31,12 @@ public class EmailDispatcher {
     private final TransactionTemplate tx;
     private final ResendClient client;
     private final EmailRenderer renderer;
+    private final java.util.List<EmailAttachmentProvider> attachmentProviders;
     private final AtomicBoolean warnedUnconfigured = new AtomicBoolean();
 
     public EmailDispatcher(JdbcTemplate jdbc, PlatformTransactionManager txManager, ResendClient client,
-            EmailRenderer renderer) {
+            EmailRenderer renderer, java.util.List<EmailAttachmentProvider> attachmentProviders) {
+        this.attachmentProviders = attachmentProviders;
         this.jdbc = jdbc;
         this.tx = new TransactionTemplate(txManager);
         this.client = client;
@@ -76,7 +78,14 @@ public class EmailDispatcher {
         try {
             EmailTemplate template = EmailTemplate.valueOf((String) row.get("template"));
             Map<String, Object> data = JSON.readValue((String) row.get("payload"), new TypeReference<>() { });
-            result = client.send(id.toString(), (String) row.get("to_address"), renderer.render(template, data));
+            RenderedEmail email = renderer.render(template, data);
+            java.util.List<EmailAttachment> files = new java.util.ArrayList<>();
+            for (EmailAttachmentProvider p : attachmentProviders) {
+                if (p.supports(template)) {
+                    files.addAll(p.attachmentsFor(template, data));
+                }
+            }
+            result = client.send(id.toString(), (String) row.get("to_address"), email.withAttachments(files));
         } catch (RuntimeException e) {
             result = new ResendClient.Result(ResendClient.Outcome.REJECTED, "Render failed: " + e.getMessage());
         }

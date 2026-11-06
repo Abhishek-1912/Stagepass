@@ -75,4 +75,70 @@ class EmailRendererTest {
         assertThat(email.subject()).isEqualTo("Welcome to Stagepass");
         assertThat(email.html()).contains("Hi there");
     }
+    private static Map<String, Object> booking(Map<String, Object> extra) {
+        Map<String, Object> m = new java.util.HashMap<>(Map.of("bookingId", "b-42", "bookingCode", "SP-ABC234",
+                "title", "Sunburn Goa", "slug", "sunburn-goa", "startsAt", "2026-11-14T13:00:00Z",
+                "venue", "Vagator Beach, Goa", "attendeeName", "Asha Rao"));
+        m.putAll(extra);
+        return m;
+    }
+
+    @Test
+    void bookingConfirmedListsEveryTicket() {
+        List<Map<String, String>> tickets = new java.util.ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            tickets.add(Map.of("code", "SP-AAAA-" + (2000 + i), "type", "General"));
+        }
+        RenderedEmail email = renderer.render(EmailTemplate.BOOKING_CONFIRMED,
+                booking(Map.of("tickets", tickets, "totalPaise", 105104, "invoiceNumber", "SP/2026-27/000042")));
+
+        assertThat(email.subject()).isEqualTo("You're going to Sunburn Goa");
+        for (int i = 0; i < 20; i++) {
+            assertThat(email.html()).contains("SP-AAAA-" + (2000 + i));
+            assertThat(email.text()).contains("SP-AAAA-" + (2000 + i));
+        }
+        assertThat(email.text()).contains("Sat, 14 Nov 2026 · 6:30 PM").contains("SP-ABC234").contains("1,051.04")
+                .contains("https://stagepass.example/account/bookings/b-42");
+    }
+
+    @Test
+    void refundProcessedSaysWhetherFeeCameBack() {
+        RenderedEmail kept = renderer.render(EmailTemplate.REFUND_PROCESSED,
+                booking(Map.of("amountPaise", 49900, "includesFee", false, "ticketCount", 1)));
+        assertThat(kept.subject()).isEqualTo("Refund of Rs. 499.00 processed");
+        assertThat(kept.text()).contains("convenience fee");
+
+        RenderedEmail free = renderer.render(EmailTemplate.REFUND_PROCESSED,
+                booking(Map.of("amountPaise", 0, "includesFee", false, "ticketCount", 2)));
+        assertThat(free.subject()).isEqualTo("Your free tickets were cancelled");
+    }
+
+    @Test
+    void otherBookingEmailSubjects() {
+        assertThat(renderer.render(EmailTemplate.BOOKING_EXPIRED, booking(Map.of())).subject())
+                .isEqualTo("Your checkout for Sunburn Goa expired");
+        assertThat(renderer.render(EmailTemplate.REFUND_DECLINED, booking(Map.of("note", "Too close to the show"))))
+                .satisfies(e -> {
+                    assertThat(e.subject()).isEqualTo("Update on your refund request");
+                    assertThat(e.text()).contains("Too close to the show");
+                });
+        RenderedEmail cancelled = renderer.render(EmailTemplate.EVENT_CANCELLED,
+                booking(Map.of("refunded", true, "amountPaise", 105104)));
+        assertThat(cancelled.subject()).isEqualTo("Sunburn Goa has been cancelled");
+        assertThat(cancelled.text()).contains("1,051.04").contains("5-7 working days");
+    }
+
+    @Test
+    void eventChangedShowsRefundDeadline() {
+        RenderedEmail email = renderer.render(EmailTemplate.EVENT_CHANGED,
+                booking(Map.of("refundUntil", "2026-11-13T12:00:00Z")));
+        assertThat(email.subject()).isEqualTo("Sunburn Goa has changed");
+        assertThat(email.text()).contains("13 Nov 2026").contains("full refund");
+    }
+
+    @Test
+    void templatesEscapeHtml() {
+        RenderedEmail email = renderer.render(EmailTemplate.BOOKING_EXPIRED, booking(Map.of("title", "<b>x</b>")));
+        assertThat(email.html()).contains("&lt;b&gt;x&lt;/b&gt;").doesNotContain("<b>x</b>");
+    }
 }

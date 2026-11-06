@@ -37,14 +37,27 @@ public class ResendClient {
     }
 
     /** @param idempotencyKey stable per email, so a retry after a timeout cannot send the email twice */
+    private Map<String, Object> body(String to, RenderedEmail email) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("from", props.from());
+        body.put("to", List.of(to));
+        body.put("subject", email.subject());
+        body.put("html", email.html());
+        body.put("text", email.text());
+        if (!email.attachments().isEmpty()) {
+            body.put("attachments", email.attachments().stream().map(a -> Map.of("filename", a.filename(),
+                    "content", java.util.Base64.getEncoder().encodeToString(a.content()))).toList());
+        }
+        return body;
+    }
+
     public Result send(String idempotencyKey, String to, RenderedEmail email) {
         try {
             http.post().uri("/emails")
                     .header("Authorization", "Bearer " + props.apiKey())
                     .header("Idempotency-Key", idempotencyKey)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("from", props.from(), "to", List.of(to), "subject", email.subject(),
-                            "html", email.html(), "text", email.text()))
+                    .body(body(to, email))
                     .retrieve()
                     .toBodilessEntity();
             return new Result(Outcome.SENT, null);
