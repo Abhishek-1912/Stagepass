@@ -68,6 +68,15 @@ public class BookingConfirmationService {
         };
     }
 
+    /** Confirms an expired, locked booking whose tickets the caller has just held again (late payment). */
+    void confirmLate(Booking b, String razorpayPaymentId) {
+        if (b.getStatus() != BookingStatus.EXPIRED) {
+            throw new IllegalStateException("Only an expired booking can be confirmed late");
+        }
+        b.setCancelReason(null);
+        confirm(b, Map.of("totalPaise", b.getTotalPaise(), "razorpayPaymentId", razorpayPaymentId, "late", true));
+    }
+
     /** Confirms a ₹0 booking straight away (no payment). Call inside the transaction that created it. */
     public void confirmFree(Booking b) {
         if (b.getTotalPaise() != 0 || b.getStatus() != BookingStatus.PENDING_PAYMENT) {

@@ -5,6 +5,8 @@ import com.stagepass.booking.domain.Booking;
 import com.stagepass.booking.repository.BookingRepository;
 import com.stagepass.booking.service.BookingConfirmationService;
 import com.stagepass.booking.service.BookingService;
+import com.stagepass.booking.service.LatePaymentHandler;
+import com.stagepass.booking.service.RefundGateway;
 import com.stagepass.common.audit.AuditLogService;
 import com.stagepass.common.error.ApiException;
 import com.stagepass.common.error.ErrorCode;
@@ -56,10 +58,15 @@ public class PaymentService {
     private final BookingService bookingService;
     private final AuditLogService audit;
     private final TransactionTemplate tx;
+    private final LatePaymentHandler latePayments;
+    private final RefundGateway refundGateway;
 
     public PaymentService(RazorpayClient razorpay, RazorpaySignatures signatures, PaymentRepository payments,
             BookingRepository bookings, BookingConfirmationService confirmation, BookingService bookingService,
-            AuditLogService audit, PlatformTransactionManager txManager) {
+            AuditLogService audit, PlatformTransactionManager txManager, LatePaymentHandler latePayments,
+            RefundGateway refundGateway) {
+        this.latePayments = latePayments;
+        this.refundGateway = refundGateway;
         this.razorpay = razorpay;
         this.signatures = signatures;
         this.payments = payments;
@@ -136,12 +143,15 @@ public class PaymentService {
             return new SettleResult(Outcome.MISMATCH, row.getBookingId(), problem);
         }
 
-        return tx.execute(s -> {
+        UUID[] refundToSend = new UUID[1];
+        SettleResult result = tx.execute(s -> {
             // Lock the booking first: every settle of this booking runs one at a time from here.
             bookings.findForUpdate(row.getBookingId());
             Payment p = payments.findById(row.getId()).orElseThrow();
             if (p.getStatus() == PaymentStatus.CAPTURED && !Objects.equals(p.getRazorpayPaymentId(), rp.id())) {
-                log.warn("Second captured payment {} on order {} (first {})", rp.id(), rp.orderId(), p.getRazorpayPaymentId());
+                log.error("Second captured payment {} on order {} (first {}): refund it from the Razorpay dashboard",
+                        rp.id(), rp.orderId(), p.getRazorpayPaymentId());
+                mismatch(null, row.getBookingId(), "second captured payment " + rp.id() + " on the same order");
                 return new SettleResult(Outcome.LATE_PAYMENT, row.getBookingId(), "second payment on the same order");
             }
             p.setRazorpayPaymentId(rp.id());
@@ -155,9 +165,18 @@ public class PaymentService {
             return switch (confirmation.confirmPaid(row.getBookingId(), rp.id())) {
                 case CONFIRMED -> new SettleResult(Outcome.CONFIRMED, row.getBookingId(), null);
                 case ALREADY_CONFIRMED -> new SettleResult(Outcome.ALREADY_CONFIRMED, row.getBookingId(), null);
-                case NOT_PENDING -> new SettleResult(Outcome.LATE_PAYMENT, row.getBookingId(), "booking no longer pending");
+                case NOT_PENDING -> {
+                    LatePaymentHandler.Result late = latePayments.handle(row.getBookingId(), p);
+                    refundToSend[0] = late.refundId();
+                    yield late.confirmed() ? new SettleResult(Outcome.CONFIRMED, row.getBookingId(), "confirmed late")
+                            : new SettleResult(Outcome.LATE_PAYMENT, row.getBookingId(), "booking no longer pending");
+                }
             };
         });
+        if (refundToSend[0] != null) {
+            refundGateway.submit(refundToSend[0]);
+        }
+        return result;
     }
 
     private static String problemWith(RazorpayModels.Payment rp, Payment row) {
