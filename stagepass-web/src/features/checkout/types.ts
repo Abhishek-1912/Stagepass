@@ -49,6 +49,7 @@ export interface RefundLine {
   kind: string
   amountPaise: number
   ticketCount: number
+  ticketIds: string[]
   note: string | null
   createdAt: string
 }

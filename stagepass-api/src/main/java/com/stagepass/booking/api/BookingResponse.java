@@ -32,7 +32,7 @@ public record BookingResponse(UUID id, String code, String status, UUID eventId,
             OffsetDateTime until, String message, List<RefundLine> history) {
     }
 
-    public record RefundLine(UUID id, String status, String kind, long amountPaise, int ticketCount, String note,
-            OffsetDateTime createdAt) {
+    public record RefundLine(UUID id, String status, String kind, long amountPaise, int ticketCount,
+            List<UUID> ticketIds, String note, OffsetDateTime createdAt) {
     }
 }

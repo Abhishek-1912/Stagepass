@@ -37,11 +37,12 @@ export function useVerifyPayment() {
   })
 }
 
-/** One of the signed-in user's bookings. */
-export function useMyBooking(id: string | undefined) {
+/** One of the signed-in user's bookings; with {@code pollWhilePending} it re-checks every 3 s until paid. */
+export function useMyBooking(id: string | undefined, { pollWhilePending = false } = {}) {
   return useQuery({
     queryKey: bookingQueryKey(id),
     queryFn: () => api<Booking>(`/me/bookings/${id}`),
     enabled: !!id,
+    refetchInterval: (q) => (pollWhilePending && q.state.data?.status === 'PENDING_PAYMENT' ? 3000 : false),
   })
 }

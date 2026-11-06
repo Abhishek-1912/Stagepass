@@ -108,7 +108,7 @@ public class BookingViews {
         RefundEligibility.Eligibility el = eligibility.forEvent(e, OffsetDateTime.now(clock));
         List<BookingResponse.RefundLine> lines = history.stream()
                 .map(r -> new BookingResponse.RefundLine(r.getId(), r.getStatus().name(), r.getKind().name(),
-                        r.getAmountPaise(), r.getTicketIds().length,
+                        r.getAmountPaise(), r.getTicketIds().length, List.of(r.getTicketIds()),
                         r.getStatus() == com.stagepass.booking.domain.RefundStatus.DECLINED ? r.getFailureReason() : null,
                         r.getCreatedAt()))
                 .toList();
