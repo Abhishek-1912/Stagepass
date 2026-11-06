@@ -19,10 +19,11 @@ const TABS: { key: string; label: string; statuses?: EventStatus[] }[] = [
 ]
 
 function EventCard({ e }: { e: EventSummary }) {
-  const nextStep = e.status === 'DRAFT' || e.status === 'REJECTED' ? 'basics' : 'review'
+  const target =
+    e.status === 'DRAFT' || e.status === 'REJECTED' ? 'basics' : e.status === 'PENDING_REVIEW' ? 'review' : 'manage'
   return (
     <Link
-      to={`/organizer/events/${e.id}/${nextStep}`}
+      to={`/organizer/events/${e.id}/${target}`}
       className="group overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]"
     >
       <div className="relative aspect-[16/9] bg-muted">
