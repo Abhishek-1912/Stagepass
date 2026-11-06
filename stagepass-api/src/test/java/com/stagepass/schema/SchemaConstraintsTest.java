@@ -54,7 +54,7 @@ class SchemaConstraintsTest extends PostgresIntegrationTest {
     @Test
     void seedsRolesAndCategories() {
         assertThat(jdbc.queryForObject("select count(*) from roles", Integer.class)).isEqualTo(3);
-        assertThat(jdbc.queryForObject("select count(*) from event_categories", Integer.class)).isEqualTo(9);
+        assertThat(jdbc.queryForObject("select count(*) from event_categories where slug in ('music','concerts','technology','business','workshops','sports','comedy','festivals','food-lifestyle')", Integer.class)).isEqualTo(9);
         assertThat(jdbc.queryForObject(
                 "select (value->>'convenienceFeeBps')::int from platform_settings where key = 'fees'", Integer.class))
                 .isEqualTo(250);

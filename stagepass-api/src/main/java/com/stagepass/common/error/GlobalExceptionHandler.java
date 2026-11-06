@@ -28,6 +28,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(ex.code().status()).body(problem(ex.code(), ex.getMessage()));
     }
 
+    @ExceptionHandler(FieldErrors.InvalidFieldsException.class)
+    ResponseEntity<ProblemDetail> handleInvalidFields(FieldErrors.InvalidFieldsException ex) {
+        ProblemDetail body = problem(ErrorCode.VALIDATION_FAILED, "Request validation failed");
+        body.setProperty("errors", ex.problems().stream()
+                .map(p -> Map.of("field", p.field(), "message", p.message())).toList());
+        return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.status()).body(body);
+    }
+
     /** Method-security denials are rethrown so Spring Security's handler answers, but keep a fallback. */
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException ex) {
