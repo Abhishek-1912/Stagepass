@@ -51,6 +51,9 @@ public class EventSearchService {
         if (blankToNull(raw.sort()) != null) {
             try {
                 sort = EventSearchParams.Sort.valueOf(raw.sort().trim().toUpperCase(Locale.ROOT));
+                if (sort == EventSearchParams.Sort.TRENDING) {
+                    throw new IllegalArgumentException("internal sort");
+                }
             } catch (IllegalArgumentException e) {
                 errors.add("sort", "must be popular, soonest or nearby");
             }

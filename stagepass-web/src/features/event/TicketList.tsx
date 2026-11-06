@@ -36,9 +36,11 @@ export function TicketList({ event }: { event: PublicEventDetail }) {
               <div className="min-w-0">
                 <p className="font-medium">{t.name}</p>
                 {t.description && <p className="text-sm text-muted-foreground">{t.description}</p>}
-                <div className="mt-1">
-                  <Availability t={t} />
-                </div>
+                {event.status === 'PUBLISHED' && (
+                  <div className="mt-1">
+                    <Availability t={t} />
+                  </div>
+                )}
               </div>
               <p className="shrink-0 font-semibold">{formatPaise(t.pricePaise)}</p>
             </li>

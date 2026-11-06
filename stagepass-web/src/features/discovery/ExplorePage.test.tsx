@@ -55,6 +55,17 @@ test('choosing a date chip updates the URL and query', async () => {
   expect(discovery.usePublicEvents).toHaveBeenLastCalledWith({ date: 'weekend' })
 })
 
+test('a chip clicked while typing is kept when the search applies', async () => {
+  renderAt('/explore')
+  await userEvent.type(screen.getByRole('searchbox'), 'gig')
+  await userEvent.click(screen.getByRole('button', { name: 'This weekend' }))
+  await new Promise((r) => setTimeout(r, 400))
+
+  const search = new URLSearchParams(screen.getByTestId('location').textContent ?? '')
+  expect(search.get('q')).toBe('gig')
+  expect(search.get('date')).toBe('weekend')
+})
+
 test('clicking the active chip clears it', async () => {
   renderAt('/explore?category=comedy')
   await userEvent.click(screen.getByRole('button', { name: 'Comedy' }))

@@ -83,11 +83,12 @@ public class PublicEventService {
                 .filter(x -> x.getStatus() == OrganizerStatus.APPROVED)
                 .orElseThrow(() -> ApiException.notFound("Organizer"));
         var upcoming = queries.search(EventSearchParams.of(EventSearchParams.Sort.SOONEST).withOrganizer(o.getId()),
-                null, PageRequest.of(0, 24)).getContent();
+                null, PageRequest.of(0, 24));
         Integer past = jdbc.queryForObject("""
                 select count(*) from events
                 where organizer_id = ? and (status = 'COMPLETED' or (status = 'PUBLISHED' and ends_at <= now()))
                 """, Integer.class, o.getId());
-        return new PublicOrganizerProfile(PublicOrganizer.from(o), upcoming, past == null ? 0 : past);
+        return new PublicOrganizerProfile(PublicOrganizer.from(o), upcoming.getContent(), upcoming.getTotalElements(),
+                past == null ? 0 : past);
     }
 }

@@ -8,7 +8,6 @@ import com.stagepass.discovery.api.HomeFeedResponse;
 import com.stagepass.discovery.api.HomeFeedResponse.CategoryRail;
 import com.stagepass.discovery.api.PublicEventCard;
 import com.stagepass.discovery.repository.PublicEventQueries;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +41,7 @@ public class HomeFeedService {
         EventSearchParams base = EventSearchParams.of(Sort.POPULAR).withCity(c, true);
 
         List<PublicEventCard> featured = list(base.featured(), FEATURED, null);
-        List<PublicEventCard> trending = list(base.startingWithin(30), FEED, null);
+        List<PublicEventCard> trending = list(withSort(base.startingWithin(30), Sort.TRENDING), FEED, null);
         List<PublicEventCard> weekend = list(withSort(base, Sort.SOONEST), FEED,
                 DateRanges.resolve("weekend", null, null, clock).orElse(null));
         List<PublicEventCard> upcoming = list(withSort(base, Sort.SOONEST), FEED, null);
@@ -75,7 +74,7 @@ public class HomeFeedService {
     }
 
     private List<PublicEventCard> list(EventSearchParams p, int size, DateRanges.Range range) {
-        return queries.search(p, range, PageRequest.of(0, size)).getContent();
+        return queries.list(p, range, size);
     }
 
     private static EventSearchParams withSort(EventSearchParams p, Sort sort) {

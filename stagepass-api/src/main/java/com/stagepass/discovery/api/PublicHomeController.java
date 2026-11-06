@@ -26,8 +26,8 @@ public class PublicHomeController {
     public ResponseEntity<HomeFeedResponse> home(@RequestParam(required = false) String city,
             @RequestParam(required = false) Double lat, @RequestParam(required = false) Double lng) {
         FieldErrors.start()
-                .addIf(lat != null && (lat < -90 || lat > 90), "lat", "must be between -90 and 90")
-                .addIf(lng != null && (lng < -180 || lng > 180), "lng", "must be between -180 and 180")
+                .addIf(lat != null && (!Double.isFinite(lat) || lat < -90 || lat > 90), "lat", "must be between -90 and 90")
+                .addIf(lng != null && (!Double.isFinite(lng) || lng < -180 || lng > 180), "lng", "must be between -180 and 180")
                 .addIf(city != null && city.length() > 80, "city", "is too long")
                 .throwIfAny();
         return ResponseEntity.ok().cacheControl(ONE_MINUTE).body(home.home(city, lat, lng));

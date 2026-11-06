@@ -11,7 +11,8 @@ public record EventSearchParams(String q, String city, String category, Long min
         boolean freeOnly, Double lat, Double lng, double radiusKm, Sort sort, UUID organizerId,
         Integer startsWithinDays, boolean includeOnlineWithCity, boolean featuredOnly, boolean excludeOnline) {
 
-    public enum Sort { POPULAR, SOONEST, NEARBY }
+    /** TRENDING is internal (home feed): popularity only, without the featured boost. */
+    public enum Sort { POPULAR, SOONEST, NEARBY, TRENDING }
 
     public boolean hasLocation() {
         return lat != null && lng != null;

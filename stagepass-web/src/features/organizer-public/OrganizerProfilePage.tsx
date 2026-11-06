@@ -27,7 +27,7 @@ export function OrganizerProfilePage() {
     )
   }
 
-  const { organizer, upcoming, pastEvents } = data
+  const { organizer, upcoming, upcomingCount, pastEvents } = data
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 py-12 sm:px-6">
       <header className="flex flex-wrap items-center gap-5">
@@ -40,7 +40,7 @@ export function OrganizerProfilePage() {
           <h1 className="text-3xl font-bold">{organizer.name}</h1>
           {organizer.bio && <p className="max-w-2xl text-muted-foreground">{organizer.bio}</p>}
           <p className="text-sm text-muted-foreground">
-            {upcoming.length} upcoming · {pastEvents} past {pastEvents === 1 ? 'event' : 'events'}
+            {upcomingCount} upcoming · {pastEvents} past {pastEvents === 1 ? 'event' : 'events'}
           </p>
         </div>
         {organizer.website && (

@@ -1,5 +1,5 @@
 import { Search, SlidersHorizontal } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { EventCard } from '@/components/events/EventCard'
 import { EventCardSkeleton } from '@/components/events/EventCardSkeleton'
@@ -40,17 +40,33 @@ export function ExplorePage() {
   const [params, setParams] = useSearchParams()
   const filters = useMemo(() => parseFilters(params), [params])
   const [q, setQ] = useState(filters.q ?? '')
+  // Keep the box in sync when the URL changes from outside (Back/Forward, links, Clear filters).
+  const [syncedQ, setSyncedQ] = useState(filters.q)
+  if (filters.q !== syncedQ) {
+    setSyncedQ(filters.q)
+    setQ(filters.q ?? '')
+  }
   const [sheetOpen, setSheetOpen] = useState(false)
   const { data: categories } = useCategories()
   const query = usePublicEvents(filters)
 
   const update = (next: ExploreFilters) => setParams(toSearchParams(next))
 
-  // Debounce typing into the URL.
+  // The live URL params, so the debounced search below never writes back a stale copy of the other filters
+  // (React Router's functional setter sees the params from when the timer was created).
+  const latestParams = useRef(params)
+  useEffect(() => {
+    latestParams.current = params
+  }, [params])
+
+  // Debounce typing into the URL; replace the history entry so each pause in typing doesn't add a Back step.
   useEffect(() => {
     const trimmed = q.trim()
     if (trimmed === (filters.q ?? '')) return
-    const t = setTimeout(() => update({ ...filters, q: trimmed || undefined }), 300)
+    const t = setTimeout(
+      () => setParams(toSearchParams({ ...parseFilters(latestParams.current), q: trimmed || undefined }), { replace: true }),
+      300,
+    )
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q])

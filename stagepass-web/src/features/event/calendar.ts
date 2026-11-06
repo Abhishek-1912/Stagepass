@@ -45,5 +45,6 @@ export function downloadIcs(e: CalendarEvent) {
   a.href = href
   a.download = `${e.slug}.ics`
   a.click()
-  URL.revokeObjectURL(href)
+  // Revoking synchronously can cancel the download in Firefox/Safari.
+  setTimeout(() => URL.revokeObjectURL(href), 1000)
 }

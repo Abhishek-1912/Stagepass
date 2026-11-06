@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
@@ -17,19 +18,9 @@ async function copy(url: string) {
   }
 }
 
-/** Native share sheet on phones; a menu with WhatsApp, X and Copy link elsewhere. */
+/** Share menu: WhatsApp, X and Copy link everywhere, plus the system share sheet where the browser has one. */
 export function ShareButton({ url, title, className }: { url: string; title: string; className?: string }) {
-  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-    return (
-      <Button
-        variant="outline"
-        className={className}
-        onClick={() => navigator.share({ title, text: `${title} on Stagepass`, url }).catch(() => {})}
-      >
-        <Share2 /> Share
-      </Button>
-    )
-  }
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
   const message = encodeURIComponent(`${title} ${url}`)
   return (
     <DropdownMenu>
@@ -56,6 +47,16 @@ export function ShareButton({ url, title, className }: { url: string; title: str
         <DropdownMenuItem onSelect={() => copy(url)}>
           <Copy /> Copy link
         </DropdownMenuItem>
+        {canShare && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => navigator.share({ title, text: `${title} on Stagepass`, url }).catch(() => {})}
+            >
+              <Share2 /> More options…
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

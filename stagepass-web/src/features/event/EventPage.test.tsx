@@ -40,6 +40,7 @@ test('cancelled event shows banner and no booking', () => {
 
   expect(screen.getByRole('alert')).toHaveTextContent(/this event has been cancelled/i)
   expect(screen.getAllByRole('button', { name: /event cancelled/i })[0]).toBeDisabled()
+  expect(screen.queryByRole('button', { name: /add to calendar/i })).not.toBeInTheDocument()
 })
 
 test('map falls back to a Google Maps link without a key', () => {

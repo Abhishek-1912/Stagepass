@@ -94,5 +94,6 @@ export interface PublicEventDetail {
 export interface PublicOrganizerProfile {
   organizer: PublicOrganizer
   upcoming: PublicEventCard[]
+  upcomingCount: number
   pastEvents: number
 }

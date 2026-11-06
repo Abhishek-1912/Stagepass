@@ -30,6 +30,11 @@ test('book button is disabled until booking launches', () => {
   expect(screen.getByRole('button', { name: /tickets on sale soon/i })).toBeDisabled()
 })
 
+test('cancelled events show no on-sale signals', () => {
+  render(<TicketList event={publicEvent({ status: 'CANCELLED', ticketTypes: [publicType({ fewLeft: true })] })} />)
+  expect(screen.queryByText('Few left')).not.toBeInTheDocument()
+})
+
 test('cancelled events cannot be booked', () => {
   render(<TicketList event={publicEvent({ status: 'CANCELLED' })} />)
   expect(screen.getByRole('button', { name: /event cancelled/i })).toBeDisabled()

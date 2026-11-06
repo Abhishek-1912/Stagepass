@@ -43,17 +43,33 @@ public class PublicEventQueries {
 
     public Page<PublicEventCard> search(EventSearchParams p, Range range, Pageable pageable) {
         MapSqlParameterSource params = new MapSqlParameterSource();
-        String inner = baseSelect(p, range, params);
-        StringBuilder outer = new StringBuilder("select * from (").append(inner).append(") s where true");
+        StringBuilder outer = filtered(p, range, params);
+        Long total = jdbc.queryForObject("select count(*) from (" + outer + ") c", params, Long.class);
+        return new PageImpl<>(rows(p, outer, params, pageable.getPageSize(), pageable.getOffset()), pageable,
+                total == null ? 0 : total);
+    }
+
+    /** Like {@link #search} but without the count query (home feeds only need the first rows). */
+    public List<PublicEventCard> list(EventSearchParams p, Range range, int limit) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        return rows(p, filtered(p, range, params), params, limit, 0);
+    }
+
+    private StringBuilder filtered(EventSearchParams p, Range range, MapSqlParameterSource params) {
+        StringBuilder outer = new StringBuilder("select * from (").append(baseSelect(p, range, params))
+                .append(") s where true");
         if (p.sort() == EventSearchParams.Sort.NEARBY && p.hasLocation()) {
             outer.append(" and distance_km <= :radius");
             params.addValue("radius", p.radiusKm());
         }
-        Long total = jdbc.queryForObject("select count(*) from (" + outer + ") c", params, Long.class);
-        outer.append(" order by ").append(orderBy(p)).append(" limit :limit offset :offset");
-        params.addValue("limit", pageable.getPageSize()).addValue("offset", pageable.getOffset());
-        List<PublicEventCard> rows = jdbc.query(outer.toString(), params, CARD);
-        return new PageImpl<>(rows, pageable, total == null ? 0 : total);
+        return outer;
+    }
+
+    private List<PublicEventCard> rows(EventSearchParams p, StringBuilder outer, MapSqlParameterSource params,
+            int limit, long offset) {
+        String sql = outer + " order by " + orderBy(p) + " limit :limit offset :offset";
+        params.addValue("limit", limit).addValue("offset", offset);
+        return jdbc.query(sql, params, CARD);
     }
 
     /** Distinct venue cities with at least one listed event, most events first. */
@@ -61,6 +77,7 @@ public class PublicEventQueries {
         return jdbc.query("""
                 select min(v.city) as city, count(*) as n
                 from events e join venues v on v.id = e.venue_id
+                join organizers o on o.id = e.organizer_id and o.status = 'APPROVED'
                 where e.status = 'PUBLISHED' and e.ends_at > now()
                 group by lower(v.city) order by n desc, min(v.city) asc limit 50
                 """, new MapSqlParameterSource(), (rs, i) -> new CityCount(rs.getString("city"), rs.getInt("n")));
@@ -85,12 +102,14 @@ public class PublicEventQueries {
         sql.append("""
 
                 from events e
+                join organizers o on o.id = e.organizer_id and o.status = 'APPROVED'
                 join event_categories c on c.id = e.category_id
                 left join venues v on v.id = e.venue_id
                 left join lateral (
                     select min(tt.price_paise) filter (where tt.status = 'ACTIVE') as min_price,
                            coalesce(sum(greatest(ti.total - ti.sold - ti.held, 0))
-                                    filter (where tt.status = 'ACTIVE'), 0) as available
+                                    filter (where tt.status = 'ACTIVE'
+                                            and (tt.sale_ends_at is null or tt.sale_ends_at > now())), 0) as available
                     from ticket_types tt join ticket_inventory ti on ti.ticket_type_id = tt.id
                     where tt.event_id = e.id
                 ) t on true
@@ -159,6 +178,7 @@ public class PublicEventQueries {
             case SOONEST -> "starts_at asc, id";
             case NEARBY -> "distance_km asc nulls last, starts_at asc, id";
             case POPULAR -> "is_featured desc, popularity_score desc, starts_at asc, id";
+            case TRENDING -> "popularity_score desc, starts_at asc, id";
         };
     }
 

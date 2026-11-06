@@ -68,7 +68,7 @@ export function EventPage() {
   const fromPrice = event.minPricePaise === null ? null : event.minPricePaise === 0 ? 'Free' : `From ${formatPaise(event.minPricePaise)}`
 
   return (
-    <article className="pb-24 lg:pb-0">
+    <article className="pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <header className="relative isolate overflow-hidden">
         {event.coverImageUrl && (
           <img src={cloudinary(event.coverImageUrl, 'f_auto,q_auto,w_1600')} alt="" className="absolute inset-0 -z-20 size-full object-cover" />
@@ -89,23 +89,25 @@ export function EventPage() {
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <ShareButton url={shareUrl} title={event.title} className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20" />
-            <Button
-              variant="outline"
-              className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20"
-              onClick={() =>
-                downloadIcs({
-                  slug: event.slug,
-                  title: event.title,
-                  startsAt: event.startsAt,
-                  endsAt: event.endsAt,
-                  location: where,
-                  url: `${window.location.origin}/events/${event.slug}`,
-                  description: event.summary ?? undefined,
-                })
-              }
-            >
-              <CalendarPlus /> Add to calendar
-            </Button>
+            {event.status === 'PUBLISHED' && (
+              <Button
+                variant="outline"
+                className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20"
+                onClick={() =>
+                  downloadIcs({
+                    slug: event.slug,
+                    title: event.title,
+                    startsAt: event.startsAt,
+                    endsAt: event.endsAt,
+                    location: where,
+                    url: `${window.location.origin}/events/${event.slug}`,
+                    description: event.summary ?? undefined,
+                  })
+                }
+              >
+                <CalendarPlus /> Add to calendar
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -184,7 +186,8 @@ export function EventPage() {
         <TicketList event={event} />
       </section>
 
-      <div className="pb-safe fixed inset-x-0 bottom-16 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-xl lg:hidden">
+      {/* Sits directly above the mobile tab bar (64px + iOS safe area); at md+ there is no tab bar, so it docks to the bottom. */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-xl md:bottom-0 md:pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <span className="font-semibold">{fromPrice}</span>
           <Button className="rounded-full px-6" disabled>
