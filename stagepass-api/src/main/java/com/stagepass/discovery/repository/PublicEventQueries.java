@@ -183,6 +183,6 @@ public class PublicEventQueries {
     }
 
     static String escapeLike(String s) {
-        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return com.stagepass.common.text.LikePatterns.escape(s);
     }
 }
