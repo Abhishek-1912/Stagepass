@@ -12,6 +12,7 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
+import { CheckoutPage, ResumeCheckoutPage } from '@/features/checkout/CheckoutPage'
 import { ExplorePage } from '@/features/discovery/ExplorePage'
 import { EventPage } from '@/features/event/EventPage'
 import { HomePage } from '@/features/home/HomePage'
@@ -66,6 +67,22 @@ export const router = createBrowserRouter([
       { path: 'explore', element: <ExplorePage /> },
       { path: 'events/:slug', element: <EventPage /> },
       { path: 'o/:slug', element: <OrganizerProfilePage /> },
+      {
+        path: 'checkout/booking/:bookingId',
+        element: (
+          <RequireAuth>
+            <ResumeCheckoutPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'checkout/:slug',
+        element: (
+          <RequireAuth>
+            <CheckoutPage />
+          </RequireAuth>
+        ),
+      },
       {
         path: 'account',
         element: (

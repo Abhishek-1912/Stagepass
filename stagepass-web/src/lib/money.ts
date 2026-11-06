@@ -26,3 +26,8 @@ export function formatPaise(paise: number): string {
 export function paiseToRupeesInput(paise: number): string {
   return paise % 100 === 0 ? String(paise / 100) : (paise / 100).toFixed(2)
 }
+
+/** Always to the paisa, as the server computed it: `105104` → `₹1,051.04`, `0` → `₹0`. */
+export function formatPaiseExact(paise: number): string {
+  return paise === 0 ? '₹0' : rupeesWithPaise.format(paise / 100)
+}
