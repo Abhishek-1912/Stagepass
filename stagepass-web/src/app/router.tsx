@@ -25,6 +25,7 @@ import { BecomeOrganizerPage } from '@/features/organizer/BecomeOrganizerPage'
 import { OrganizerHomePage } from '@/features/organizer/OrganizerHomePage'
 import { OrganizerLayout } from '@/features/organizer/OrganizerLayout'
 import { EventEditorPage } from '@/features/organizer/events/EventEditorPage'
+import { EventManagePage } from '@/features/organizer/manage/EventManagePage'
 import { EventsListPage } from '@/features/organizer/events/EventsListPage'
 import { VenuesPage } from '@/features/organizer/venues/VenuesPage'
 
@@ -44,6 +45,7 @@ export const router = createBrowserRouter([
       { index: true, element: <OrganizerHomePage /> },
       { path: 'events', element: <EventsListPage /> },
       { path: 'events/new', element: <EventEditorPage /> },
+      { path: 'events/:id/manage', element: <EventManagePage /> },
       { path: 'events/:id/:step?', element: <EventEditorPage /> },
       { path: 'venues', element: <VenuesPage /> },
     ],
