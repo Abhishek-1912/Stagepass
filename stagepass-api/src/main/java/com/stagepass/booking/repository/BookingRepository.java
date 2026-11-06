@@ -23,6 +23,8 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     Optional<Booking> findByIdempotencyKey(String idempotencyKey);
 
+    boolean existsByCode(String code);
+
     /** Row lock so concurrent confirmations, expiries and refunds of one booking run one at a time. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Booking b where b.id = :id")

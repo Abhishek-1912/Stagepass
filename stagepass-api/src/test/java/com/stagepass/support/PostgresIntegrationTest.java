@@ -49,5 +49,6 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.datasource.url", () -> POSTGRES.getJdbcUrl("postgres", "postgres"));
         registry.add("spring.datasource.username", () -> "postgres");
         registry.add("spring.datasource.password", () -> "postgres");
+        registry.add("razorpay.base-url", () -> SharedRazorpay.server().baseUrl());
     }
 }

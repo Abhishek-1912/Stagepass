@@ -18,4 +18,6 @@ import java.util.UUID;
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
 
     List<Ticket> findByBookingIdOrderByCodeAsc(UUID bookingId);
+
+    boolean existsByCode(String code);
 }
