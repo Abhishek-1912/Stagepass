@@ -5,6 +5,7 @@ import com.stagepass.booking.domain.BookingItem;
 import com.stagepass.booking.domain.BookingStatus;
 import com.stagepass.booking.repository.BookingRepository;
 import com.stagepass.catalog.domain.Event;
+import com.stagepass.catalog.domain.EventStatus;
 import com.stagepass.catalog.repository.EventRepository;
 import com.stagepass.common.audit.AuditLogService;
 import com.stagepass.common.error.ApiException;
@@ -62,6 +63,16 @@ public class BookingConfirmationService {
             case CONFIRMED, PARTIALLY_REFUNDED, REFUNDED -> Outcome.ALREADY_CONFIRMED;
             case EXPIRED, CANCELLED -> Outcome.NOT_PENDING;
             case PENDING_PAYMENT -> {
+                if (!onSale(b)) {
+                    // The event was cancelled (or has ended) while this checkout was open: refund, don't confirm.
+                    for (BookingItem item : b.getItems()) {
+                        inventory.release(item.getTicketTypeId(), item.getQuantity());
+                    }
+                    b.setStatus(BookingStatus.CANCELLED);
+                    b.setCancelReason("Event no longer on sale");
+                    bookings.saveAndFlush(b);
+                    yield Outcome.NOT_PENDING;
+                }
                 confirm(b, Map.of("totalPaise", b.getTotalPaise(), "razorpayPaymentId", razorpayPaymentId));
                 yield Outcome.CONFIRMED;
             }
@@ -83,6 +94,13 @@ public class BookingConfirmationService {
             throw new IllegalStateException("Only a pending free booking can be confirmed without payment");
         }
         confirm(b, Map.of("totalPaise", 0, "free", true));
+    }
+
+    /** The event still sells tickets: published and not yet ended. */
+    boolean onSale(Booking b) {
+        return events.findById(b.getEventId())
+                .map(e -> e.getStatus() == EventStatus.PUBLISHED && e.getEndsAt().isAfter(OffsetDateTime.now(clock)))
+                .orElse(false);
     }
 
     private void confirm(Booking b, Map<String, Object> auditDetails) {

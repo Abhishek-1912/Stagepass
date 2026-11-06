@@ -68,4 +68,15 @@ class FeeCalculatorTest {
         assertThat(parts.get(1).subtotalPaise()).isEqualTo(149900);
         assertThat(parts.get(0).feePaise()).isLessThan(parts.get(1).feePaise());
     }
+
+    @Test
+    void splitNeverGoesNegative() {
+        PriceBreakdown whole = new PriceBreakdown(500, 3, 3, 506, 3, 5);
+        List<PriceBreakdown> parts = FeeCalculator.split(whole, List.of(100L, 100L, 100L, 100L, 100L));
+        assertThat(parts).allSatisfy(p -> {
+            assertThat(p.feePaise()).isBetween(0L, 1L);
+            assertThat(p.commissionPaise()).isBetween(0L, 1L);
+        });
+        assertThat(parts.stream().mapToLong(PriceBreakdown::feePaise).sum()).isEqualTo(3);
+    }
 }

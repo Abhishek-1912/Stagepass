@@ -64,6 +64,18 @@ public class RazorpayClient {
                 Map.of("amount", amountPaise, "currency", "INR"))));
     }
 
+    /** Refunds Razorpay holds for a payment, with our {@code notes.refundId} (to reconcile unanswered refund calls). */
+    public java.util.List<RazorpayModels.RefundRecord> listRefunds(String paymentId) {
+        JsonNode n = call(() -> http.get().uri("/v1/payments/{id}/refunds?count=100", paymentId).retrieve().body(String.class));
+        java.util.List<RazorpayModels.RefundRecord> out = new java.util.ArrayList<>();
+        for (JsonNode r : n.path("items")) {
+            String ours = r.path("notes").path("refundId").asString("");
+            out.add(new RazorpayModels.RefundRecord(r.path("id").asString(), r.path("amount").asLong(),
+                    r.path("status").asString(), ours.isEmpty() ? null : ours));
+        }
+        return out;
+    }
+
     public Refund refund(String paymentId, long amountPaise, String receipt, Map<String, String> notes) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("amount", amountPaise);

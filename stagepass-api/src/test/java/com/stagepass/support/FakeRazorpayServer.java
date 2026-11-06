@@ -32,6 +32,8 @@ public final class FakeRazorpayServer implements AutoCloseable {
     private final Map<String, Integer> forcedStatus = new ConcurrentHashMap<>();
     private final AtomicInteger orderSeq = new AtomicInteger();
     private final AtomicInteger refundSeq = new AtomicInteger();
+    private final Map<String, List<String>> refunds = new ConcurrentHashMap<>();
+    private final java.util.Set<String> lostRefundReplies = ConcurrentHashMap.newKeySet();
 
     public FakeRazorpayServer() {
         try {
@@ -60,8 +62,18 @@ public final class FakeRazorpayServer implements AutoCloseable {
                 reply = payments.getOrDefault(id, "{}");
             } else if (path.matches("/v1/payments/[^/]+/refund")) {
                 String id = path.split("/")[3];
+                var notes = java.util.regex.Pattern.compile("\"refundId\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
+                String ours = notes.find() ? notes.group(1) : "";
                 reply = "{\"id\":\"rfnd_fake" + refundSeq.incrementAndGet() + "\",\"payment_id\":\"" + id
-                        + "\",\"amount\":" + field(body, "amount") + ",\"status\":\"pending\"}";
+                        + "\",\"amount\":" + field(body, "amount") + ",\"status\":\"pending\",\"notes\":{\"refundId\":\"" + ours + "\"}}";
+                refunds.computeIfAbsent(id, k -> new CopyOnWriteArrayList<>()).add(reply);
+                if (lostRefundReplies.contains(id)) {
+                    status = 504;
+                    reply = "{}";
+                }
+            } else if (path.matches("/v1/payments/[^/]+/refunds")) {
+                String id = path.split("/")[3];
+                reply = "{\"entity\":\"collection\",\"items\":[" + String.join(",", refunds.getOrDefault(id, List.of())) + "]}";
             } else if (path.matches("/v1/payments/[^/]+")) {
                 String id = path.split("/")[3];
                 reply = payments.get(id);
@@ -105,12 +117,18 @@ public final class FakeRazorpayServer implements AutoCloseable {
                 """.formatted(paymentId, amountPaise, status, orderId));
     }
 
+    /** Refunds for this payment are created but the reply is lost (504), like a timeout after Razorpay acted. */
+    public void loseRefundReplies(String paymentId) {
+        lostRefundReplies.add(paymentId);
+    }
+
     public void failPath(String pathPrefix, int status) {
         forcedStatus.put(pathPrefix, status);
     }
 
     public void clearFailures() {
         forcedStatus.clear();
+        lostRefundReplies.clear();
     }
 
     public List<Received> received() {

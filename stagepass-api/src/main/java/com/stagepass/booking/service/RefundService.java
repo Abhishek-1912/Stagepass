@@ -39,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -173,11 +174,20 @@ public class RefundService {
 
     // ---------------------------------------------------------------- event cancellation
 
-    /** Refunds every ticket of a cancelled event in full (fees included) and ends open checkouts. */
+    /**
+     * Refunds every ticket of a cancelled event in full (fees included) and ends open checkouts. Idempotent and
+     * safe to repeat: each booking is handled on its own, so one failure doesn't stop the rest.
+     */
     public int refundEventCancellation(UUID eventId, UUID actorId) {
         List<UUID> pending = tx.execute(s -> bookings.findByEventIdAndStatusIn(eventId,
                 List.of(BookingStatus.PENDING_PAYMENT)).stream().map(Booking::getId).toList());
-        pending.forEach(id -> tx.executeWithoutResult(s -> expiry.expire(id, "EVENT_CANCELLED")));
+        for (UUID id : pending) {
+            try {
+                tx.executeWithoutResult(s -> expiry.expire(id, "EVENT_CANCELLED"));
+            } catch (RuntimeException e) {
+                log.error("Could not end checkout {} of cancelled event {}; will retry", id, eventId, e);
+            }
+        }
 
         tx.executeWithoutResult(s -> refunds.findByEventId(eventId).stream()
                 .filter(r -> r.getStatus() == RefundStatus.PENDING_APPROVAL)
@@ -192,43 +202,57 @@ public class RefundService {
                 List.of(BookingStatus.CONFIRMED, BookingStatus.PARTIALLY_REFUNDED)).stream().map(Booking::getId).toList());
         int issued = 0;
         for (UUID bookingId : confirmed) {
-            UUID refundId = tx.execute(s -> {
-                Booking b = bookings.findForUpdate(bookingId).orElseThrow();
-                Set<UUID> claimed = RefundEligibility.claimedTicketIds(refunds.findByBookingIdOrderByCreatedAtDesc(bookingId));
-                List<Ticket> live = b.getTickets().stream()
-                        .filter(t -> t.getStatus() == TicketStatus.VALID && !claimed.contains(t.getId())).toList();
-                if (live.isEmpty()) {
-                    return null;
+            try {
+                UUID refundId = tx.execute(s -> {
+                    Booking b = bookings.findForUpdate(bookingId).orElseThrow();
+                    Set<UUID> claimed = RefundEligibility.claimedTicketIds(refunds.findByBookingIdOrderByCreatedAtDesc(bookingId));
+                    List<Ticket> live = b.getTickets().stream()
+                            .filter(t -> t.getStatus() == TicketStatus.VALID && !claimed.contains(t.getId())).toList();
+                    if (live.isEmpty()) {
+                        return null;
+                    }
+                    return apply(b, live, RefundKind.CANCELLATION, true, null, actorId, "Event cancelled", null).getId();
+                });
+                if (refundId != null) {
+                    issued++;
+                    submit(refundId);
                 }
-                return apply(b, live, RefundKind.CANCELLATION, true, null, actorId, "Event cancelled", null).getId();
-            });
-            if (refundId != null) {
-                issued++;
-                if (submit(refundId) == RefundStatus.FAILED) {
-                    log.error("Cancellation refund {} for booking {} failed; needs an admin retry", refundId, bookingId);
-                }
+            } catch (RuntimeException e) {
+                log.error("Cancellation refund for booking {} failed; the sweep job will retry", bookingId, e);
             }
         }
         return issued;
     }
 
-    // ---------------------------------------------------------------- webhooks
+    // ---------------------------------------------------------------- webhooks and retries
 
-    public void onProcessed(String razorpayRefundId) {
-        gateway.onProcessed(razorpayRefundId);
+    public void onProcessed(String razorpayRefundId, String ourRefundId) {
+        gateway.onProcessed(razorpayRefundId, ourRefundId);
     }
 
-    public void onFailed(String razorpayRefundId, String reason) {
-        gateway.onFailed(razorpayRefundId, reason).ifPresent(this::restore);
+    public void onFailed(String razorpayRefundId, String ourRefundId, String reason) {
+        gateway.onFailed(razorpayRefundId, ourRefundId, reason).ifPresent(this::afterFailure);
     }
 
-    /** Sends a REQUESTED refund to Razorpay; on rejection restores the tickets. Call outside a transaction. */
+    /** Sends a REQUESTED refund to Razorpay; a definite refusal is handled by {@link #afterFailure}. Call outside a transaction. */
     public RefundStatus submit(UUID refundId) {
         RefundStatus status = gateway.submit(refundId);
         if (status == RefundStatus.FAILED) {
-            restore(refundId);
+            afterFailure(refundId);
         }
         return status;
+    }
+
+    /** Sends a failed refund that is queued for retry again (status back to REQUESTED). */
+    public RefundStatus retry(UUID refundId) {
+        Boolean ready = tx.execute(s -> refunds.findById(refundId)
+                .filter(r -> r.getStatus() == RefundStatus.FAILED && r.isNeedsRetry())
+                .map(r -> {
+                    r.setStatus(RefundStatus.REQUESTED);
+                    refunds.save(r);
+                    return true;
+                }).orElse(false));
+        return Boolean.TRUE.equals(ready) ? submit(refundId) : RefundStatus.FAILED;
     }
 
     // ---------------------------------------------------------------- internals
@@ -313,7 +337,7 @@ public class RefundService {
         refunds.saveAndFlush(r);
 
         OffsetDateTime now = OffsetDateTime.now(clock);
-        Map<UUID, Integer> perType = new HashMap<>();
+        Map<UUID, Integer> perType = new TreeMap<>(Comparator.comparing(UUID::toString));
         for (Ticket t : chosen) {
             t.setStatus(TicketStatus.REFUNDED);
             t.setRefundedAt(now);
@@ -336,41 +360,52 @@ public class RefundService {
         return r;
     }
 
-    /** Razorpay rejected the refund: tickets valid again, ledger and inventory restored. */
-    private void restore(UUID refundId) {
+    /**
+     * Razorpay refused the refund. For an attendee or organizer refund whose seats are all still free, the tickets
+     * become valid again (ledger and inventory restored). Otherwise - the event was cancelled, the money is owed for a
+     * late payment, or the seats were resold - the tickets stay refunded and the refund is queued for retry.
+     */
+    private void afterFailure(UUID refundId) {
         tx.executeWithoutResult(s -> {
             Refund r = refunds.findById(refundId).orElseThrow();
-            if (r.getTicketIds().length == 0) {
+            Booking b = bookings.findForUpdate(r.getBookingId()).orElseThrow();
+            Event event = events.findById(b.getEventId()).orElseThrow();
+            boolean restorable = r.getTicketIds().length > 0 && r.getKind() != RefundKind.CANCELLATION
+                    && r.getKind() != RefundKind.LATE_PAYMENT && event.getStatus() == EventStatus.PUBLISHED;
+
+            Set<UUID> ids = Set.of(r.getTicketIds());
+            List<Ticket> tickets = b.getTickets().stream()
+                    .filter(t -> ids.contains(t.getId()) && t.getStatus() == TicketStatus.REFUNDED).toList();
+            Map<UUID, Integer> perType = new TreeMap<>(Comparator.comparing(UUID::toString));
+            tickets.forEach(t -> perType.merge(t.getTicketTypeId(), 1, Integer::sum));
+            if (restorable) {
+                List<Map.Entry<UUID, Integer>> taken = new ArrayList<>();
+                for (Map.Entry<UUID, Integer> e : perType.entrySet()) {
+                    if (!inventory.sellWithoutHold(e.getKey(), e.getValue())) {
+                        taken.forEach(t -> inventory.returnSold(t.getKey(), t.getValue()));
+                        restorable = false;
+                        break;
+                    }
+                    taken.add(e);
+                }
+            }
+            if (!restorable) {
+                // The tickets stay refunded; the money is still owed, so keep trying.
+                r.setNeedsRetry(true);
+                refunds.save(r);
+                log.error("Refund {} was refused by Razorpay and is queued for retry", refundId);
                 return;
             }
-            Booking b = bookings.findForUpdate(r.getBookingId()).orElseThrow();
-            Set<UUID> ids = Set.of(r.getTicketIds());
-            Map<UUID, Integer> perType = new HashMap<>();
-            for (Ticket t : b.getTickets()) {
-                if (ids.contains(t.getId()) && t.getStatus() == TicketStatus.REFUNDED) {
-                    t.setStatus(TicketStatus.VALID);
-                    t.setRefundedAt(null);
-                    perType.merge(t.getTicketTypeId(), 1, Integer::sum);
-                }
+            for (Ticket t : tickets) {
+                t.setStatus(TicketStatus.VALID);
+                t.setRefundedAt(null);
             }
-            List<UUID> oversold = new ArrayList<>();
-            perType.forEach((type, qty) -> {
-                if (!inventory.sellWithoutHold(type, qty)) {
-                    oversold.add(type);
-                }
-            });
-            if (b.getStatus() != BookingStatus.CANCELLED) {
-                b.setStatus(statusFor(b));
-            }
+            b.setStatus(statusFor(b));
             bookings.saveAndFlush(b);
-            UUID organizerId = events.findById(b.getEventId()).orElseThrow().getOrganizer().getId();
-            ledger.recordRefundReversal(b, organizerId, r.getAmountPaise() - r.getFeePaise() - r.getFeeGstPaise(),
-                    r.getCommissionPaise());
-            if (!oversold.isEmpty()) {
-                log.error("Failed refund {} restored tickets that were already resold (types {})", refundId, oversold);
-            }
+            ledger.recordRefundReversal(b, event.getOrganizer().getId(),
+                    r.getAmountPaise() - r.getFeePaise() - r.getFeeGstPaise(), r.getCommissionPaise());
             audit.record(null, "REFUND_REVERSED", "booking", b.getId().toString(), null,
-                    Map.of("refundId", refundId.toString(), "oversoldTicketTypes", oversold.toString()));
+                    Map.of("refundId", refundId.toString(), "tickets", tickets.size()));
         });
     }
 

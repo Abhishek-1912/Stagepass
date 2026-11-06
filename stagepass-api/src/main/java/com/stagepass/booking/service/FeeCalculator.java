@@ -50,14 +50,29 @@ public final class FeeCalculator {
         return parts;
     }
 
+    /**
+     * Splits {@code amount} by weight with the largest-remainder method: every share is the floor of its exact
+     * value, and the paise left over go one each to the largest remainders (earlier tickets win ties). Shares are
+     * never negative and always sum to {@code amount}.
+     */
     private static long[] allocate(long amount, long[] weights, long weightSum) {
-        long[] out = new long[weights.length];
+        int n = weights.length;
+        long[] out = new long[n];
+        long[] remainder = new long[n];
         long used = 0;
-        for (int i = 0; i < weights.length - 1; i++) {
-            out[i] = halfUp(amount * weights[i], weightSum);
+        for (int i = 0; i < n; i++) {
+            out[i] = amount * weights[i] / weightSum;
+            remainder[i] = amount * weights[i] % weightSum;
             used += out[i];
         }
-        out[weights.length - 1] = amount - used;
+        Integer[] order = new Integer[n];
+        for (int i = 0; i < n; i++) {
+            order[i] = i;
+        }
+        java.util.Arrays.sort(order, (x, y) -> remainder[x] != remainder[y] ? Long.compare(remainder[y], remainder[x]) : Integer.compare(x, y));
+        for (int k = 0; used < amount; k++, used++) {
+            out[order[k % n]]++;
+        }
         return out;
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -104,6 +105,8 @@ public class BookingRules {
             lines.add(new Line(type, item.quantity()));
         }
         errors.throwIfAny();
+        // One fixed order for every inventory row lock (holds, releases, commits) so concurrent checkouts can't deadlock.
+        lines.sort(Comparator.comparing(l -> l.type().getId().toString())); // same order as Postgres uuid sort
 
         int requested = lines.stream().mapToInt(Line::quantity).sum();
         if (buyerId != null && event.getMaxTicketsPerUser() != null) {

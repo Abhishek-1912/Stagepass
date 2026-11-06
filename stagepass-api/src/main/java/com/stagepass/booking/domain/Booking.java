@@ -77,6 +77,7 @@ public class Booking {
     private String cancelReason;
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("ticketTypeId ASC")
     private List<BookingItem> items = new ArrayList<>();
 
     @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)

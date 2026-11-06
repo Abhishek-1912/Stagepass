@@ -63,6 +63,12 @@ public class Refund {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    @Column(name = "attempts", nullable = false)
+    private int attempts;
+
+    @Column(name = "needs_retry", nullable = false)
+    private boolean needsRetry;
+
     @Column(name = "requested_by")
     private UUID requestedBy;
 

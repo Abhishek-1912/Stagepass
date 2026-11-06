@@ -14,6 +14,7 @@ import com.stagepass.common.audit.AuditLogService;
 import com.stagepass.payment.domain.Payment;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -61,8 +62,13 @@ public class LatePaymentHandler {
         if (alreadyRefunding) {
             return new Result(false, null);
         }
-        boolean eventOnSale = events.findById(b.getEventId()).map(e -> e.getStatus() == EventStatus.PUBLISHED).orElse(false);
-        if (b.getStatus() == BookingStatus.EXPIRED && eventOnSale && holdAgain(b)) {
+        // Confirm late only for a checkout that simply ran out of time on an event that hasn't started; one the buyer
+        // replaced with a newer checkout, or on a cancelled/started event, is refunded instead.
+        boolean eventOnSale = events.findById(b.getEventId())
+                .map(e -> e.getStatus() == EventStatus.PUBLISHED && e.getStartsAt().isAfter(OffsetDateTime.now()))
+                .orElse(false);
+        boolean replaced = "REPLACED".equals(b.getCancelReason());
+        if (b.getStatus() == BookingStatus.EXPIRED && eventOnSale && !replaced && holdAgain(b)) {
             confirmation.confirmLate(b, payment.getRazorpayPaymentId());
             return new Result(true, null);
         }

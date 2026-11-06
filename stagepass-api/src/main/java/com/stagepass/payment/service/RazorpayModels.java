@@ -15,4 +15,8 @@ public final class RazorpayModels {
 
     public record Refund(String id, String paymentId, long amount, String status) {
     }
+
+    /** A refund as listed by Razorpay; {@code ourRefundId} is the {@code notes.refundId} we sent. */
+    public record RefundRecord(String id, long amount, String status, String ourRefundId) {
+    }
 }

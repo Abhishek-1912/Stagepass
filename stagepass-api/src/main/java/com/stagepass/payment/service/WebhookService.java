@@ -102,10 +102,14 @@ public class WebhookService {
                 }
             }
             case "payment.failed" -> paymentFailed(payload.path("payment").path("entity"));
-            case "refund.processed" -> refunds.onProcessed(payload.path("refund").path("entity").path("id").asString());
+            case "refund.processed" -> {
+                JsonNode refund = payload.path("refund").path("entity");
+                refunds.onProcessed(refund.path("id").asString(""), refund.path("notes").path("refundId").asString(""));
+            }
             case "refund.failed" -> {
                 JsonNode refund = payload.path("refund").path("entity");
-                refunds.onFailed(refund.path("id").asString(), "Razorpay reported the refund failed");
+                refunds.onFailed(refund.path("id").asString(""), refund.path("notes").path("refundId").asString(""),
+                        "Razorpay reported the refund failed");
             }
             case "payment.dispute.created", "payment.dispute.won", "payment.dispute.lost", "payment.dispute.closed",
                  "payment.dispute.under_review", "payment.dispute.action_required" ->

@@ -36,7 +36,11 @@ function usePayForBooking() {
   const verify = useVerifyPayment()
   const navigate = useNavigate()
   const pay = async (booking: Booking, prefill: Prefill, onPaid?: () => void) => {
-    if (!booking.checkout) return
+    if (!booking.checkout) {
+      // The order is still being created (a repeated click caught it mid-way): the resume page waits for it.
+      navigate(`/checkout/booking/${booking.id}`)
+      return
+    }
     let result
     try {
       result = await openRazorpay(booking.checkout, prefill, booking.eventTitle)
@@ -258,7 +262,8 @@ function Field({ id, label, hint, error, children }: { id: string; label: string
 /** `/checkout/booking/:bookingId` — come back to a pending booking and pay for it while the hold lasts. */
 export function ResumeCheckoutPage() {
   const { bookingId } = useParams()
-  const booking = useMyBooking(bookingId)
+  // Polling picks up the Razorpay order if it was still being created, and a webhook confirmation.
+  const booking = useMyBooking(bookingId, { pollWhilePending: true })
   const { pay, verifying } = usePayForBooking()
   const [expired, setExpired] = useState(false)
   const navigate = useNavigate()
@@ -274,7 +279,8 @@ export function ResumeCheckoutPage() {
     return <p className="px-4 py-16 text-center text-muted-foreground">We couldn’t find this booking.</p>
   }
   const b = booking.data
-  const over = expired || b.status === 'EXPIRED' || !b.checkout
+  const over = expired || b.status === 'EXPIRED'
+  const preparing = !over && !b.checkout
   return (
     <div className="mx-auto max-w-lg space-y-6 px-4 py-10">
       <EventHeader title={b.eventTitle} startsAt={b.eventStartsAt} place={b.venueName ? `${b.venueName}, ${b.city}` : null} />
@@ -288,6 +294,10 @@ export function ResumeCheckoutPage() {
               <Link to={`/events/${b.eventSlug}`}>Choose tickets again</Link>
             </Button>
           </div>
+        ) : preparing ? (
+          <p role="status" className="text-center text-sm text-muted-foreground">
+            Preparing payment…
+          </p>
         ) : (
           <>
             {b.holdExpiresAt && <HoldCountdown expiresAt={b.holdExpiresAt} onExpire={() => setExpired(true)} />}

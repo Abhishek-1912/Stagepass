@@ -116,6 +116,11 @@ public class PaymentService {
         if (problem == null && "authorized".equals(rp.status())) {
             RazorpayModels.Payment captured = fetch(() -> razorpay.capture(rp.id(), row.getAmountPaise()));
             if (captured == null) {
+                // Usually a concurrent settle captured it first: settle from Razorpay's current record.
+                RazorpayModels.Payment now = fetch(() -> razorpay.fetchPayment(rp.id()));
+                if (now != null && "captured".equals(now.status())) {
+                    return record(row, now, problemWith(now, row));
+                }
                 problem = "capture was refused";
             } else {
                 return record(row, captured, problemWith(captured, row));

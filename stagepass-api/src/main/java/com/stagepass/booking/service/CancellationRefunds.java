@@ -24,8 +24,13 @@ public class CancellationRefunds implements EventCancellationHandler {
     @Override
     public void onEventCancelled(UUID eventId, UUID actorId) {
         Runnable work = () -> {
-            int n = refunds.refundEventCancellation(eventId, actorId);
-            log.info("Event {} cancelled: {} bookings refunded", eventId, n);
+            // Best effort right after the cancel commits; CancellationSweepJob picks up anything left over.
+            try {
+                int n = refunds.refundEventCancellation(eventId, actorId);
+                log.info("Event {} cancelled: {} bookings refunded", eventId, n);
+            } catch (RuntimeException e) {
+                log.error("Refunds for cancelled event {} did not finish; the sweep job will retry", eventId, e);
+            }
         };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
