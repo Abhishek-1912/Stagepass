@@ -62,10 +62,11 @@ class SchemaConstraintsTest extends PostgresIntegrationTest {
 
     @Test
     void searchVectorIsGenerated() {
-        fx.event(fx.organizer(fx.user("o3@test.in")), "Sunburn Goa");
+        UUID id = fx.event(fx.organizer(fx.user("o3@test.in")), "Sunburn Goa");
 
         Integer hits = jdbc.queryForObject(
-                "select count(*) from events where search_vector @@ plainto_tsquery('simple', 'sunburn')", Integer.class);
+                "select count(*) from events where id = ? and search_vector @@ plainto_tsquery('simple', 'sunburn')",
+                Integer.class, id);
         assertThat(hits).isEqualTo(1);
     }
 
