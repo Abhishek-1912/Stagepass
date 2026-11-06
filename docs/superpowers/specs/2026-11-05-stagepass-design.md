@@ -252,13 +252,27 @@ inventory can be increased, or decreased down to `sold + held`.
 - Ticket page shows status badge (Valid / Checked in / Cancelled / Refunded) and event details.
 
 ### 8.6 Check-in
-- Scanner page (organizer, or staff of that event — staff role is a later addition; launch: organizer account)
+- Scanner page (organizer or assigned door staff of that event — see "Door staff and gates" below)
   uses phone camera via `html5-qrcode`; manual code entry fallback.
 - `POST /api/v1/checkin/scan {eventId, token}` → verifies signature, ticket belongs to event, ticket status.
   Check-in insert relies on `check_ins.ticket_id` unique constraint — concurrent duplicate scans: exactly one wins,
   others get `ALREADY_USED` with original scan time and scanner.
 - Responses: `VALID` (green, attendee name, ticket type), `ALREADY_USED` (amber, when/by whom), `INVALID` (red),
   `WRONG_EVENT` (red). Every scan written to `scan_logs`. Live counter of checked-in / total.
+
+**Door staff and gates (added 2026-11-06, user decision — supersedes "staff role is a later addition"):**
+- **Event staff.** An organizer invites door staff by email, either to one event or to all of the organizer's events,
+  with role `SCANNER`. An invite to an address without an account is held and applied on that person's first
+  sign-in (email-code login creates the account). Staff can open the scanner only for events they are assigned to;
+  they cannot see sales, payouts, attendee lists or event settings. The organizer can remove staff at any time
+  (effective on the next scan). The organizer account itself can always scan its own events.
+- **Gates.** An organizer defines named gates per event (e.g. "Gate 1", "VIP Gate"), each optionally limited to some
+  ticket types. A scanner picks a gate when opening the scanner. A valid ticket whose type is not allowed at that gate
+  answers `WRONG_GATE` (red) naming the allowed gate(s), and is **not** checked in. Events without gates work as before.
+- **Records.** `check_ins` and `scan_logs` gain `gate_id` (nullable). `ALREADY_USED` shows when, at which gate, and by
+  whom. Live counters: checked-in / total, per gate, per staff member; the organizer can review the scan log.
+- Concurrency rule unchanged: the `check_ins.ticket_id` unique constraint means exactly one scan wins across all gates.
+- Offline scanning stays out of scope (cannot prevent the same ticket entering at two gates).
 
 ### 8.7 Discovery
 - Search: Postgres full-text on title/summary/venue/city (`search_vector`) + `pg_trgm` for fuzzy title.
