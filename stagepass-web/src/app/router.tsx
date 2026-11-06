@@ -12,7 +12,10 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { RegisterPage } from '@/features/auth/RegisterPage'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
+import { ExplorePage } from '@/features/discovery/ExplorePage'
+import { EventPage } from '@/features/event/EventPage'
 import { HomePage } from '@/features/home/HomePage'
+import { OrganizerProfilePage } from '@/features/organizer-public/OrganizerProfilePage'
 import { NotFoundPage } from '@/features/misc/NotFoundPage'
 import { BecomeOrganizerPage } from '@/features/organizer/BecomeOrganizerPage'
 import { OrganizerHomePage } from '@/features/organizer/OrganizerHomePage'
@@ -60,6 +63,9 @@ export const router = createBrowserRouter([
     element: <PublicLayout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'explore', element: <ExplorePage /> },
+      { path: 'events/:slug', element: <EventPage /> },
+      { path: 'o/:slug', element: <OrganizerProfilePage /> },
       {
         path: 'account',
         element: (

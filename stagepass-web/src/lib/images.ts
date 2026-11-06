@@ -10,3 +10,9 @@ export const placeholderImages = {
   partyConfetti: unsplash('photo-1492684223066-81342ee5ff30'),
   liveBand: unsplash('photo-1459749411175-04bf5292ceea'),
 }
+
+/** Inserts a Cloudinary transformation (e.g. `f_auto,q_auto,w_640`) after `/upload/`; other URLs pass through. */
+export function cloudinary(url: string | null | undefined, transform: string): string | undefined {
+  if (!url) return undefined
+  return url.includes('/image/upload/') ? url.replace('/image/upload/', `/image/upload/${transform}/`) : url
+}

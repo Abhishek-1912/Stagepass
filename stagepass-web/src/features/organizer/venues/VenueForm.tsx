@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button'
 import { INDIAN_STATES } from '@/features/organizer/applicationSchema'
 import { isApiError } from '@/lib/api/ApiError'
 import type { Venue } from '@/lib/api/types'
+import { mapsKey } from '@/lib/maps'
 import { useSaveVenue } from '../api'
+import { type PickedPlace, PlacesAutocomplete } from './PlacesAutocomplete'
 
 const optionalNumber = (min: number, max: number) =>
   z
@@ -28,6 +30,7 @@ const venueSchema = z.object({
     .pipe(z.string().regex(/^[1-9][0-9]{5}$/, 'Enter a 6-digit PIN code').optional()),
   lat: optionalNumber(-90, 90),
   lng: optionalNumber(-180, 180),
+  googlePlaceId: z.string().optional(),
 })
 type VenueFormInput = z.input<typeof venueSchema>
 type VenueFormValues = z.output<typeof venueSchema>
@@ -37,6 +40,7 @@ export function VenueForm({ venue, onSaved }: { venue?: Venue; onSaved: (v: Venu
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<VenueFormInput, unknown, VenueFormValues>({
     resolver: zodResolver(venueSchema),
@@ -48,8 +52,21 @@ export function VenueForm({ venue, onSaved }: { venue?: Venue; onSaved: (v: Venu
       pincode: venue?.pincode ?? '',
       lat: venue?.lat?.toString() ?? '',
       lng: venue?.lng?.toString() ?? '',
+      googlePlaceId: venue?.googlePlaceId ?? undefined,
     },
   })
+
+  function fillFrom(place: PickedPlace) {
+    const opts = { shouldValidate: true, shouldDirty: true } as const
+    setValue('name', place.name, opts)
+    setValue('addressLine', place.addressLine, opts)
+    setValue('city', place.city, opts)
+    setValue('state', place.state ?? '', opts)
+    setValue('pincode', place.pincode ?? '', opts)
+    setValue('lat', place.lat?.toString() ?? '', opts)
+    setValue('lng', place.lng?.toString() ?? '', opts)
+    setValue('googlePlaceId', place.googlePlaceId, opts)
+  }
 
   async function onSubmit(values: VenueFormValues) {
     try {
@@ -63,6 +80,7 @@ export function VenueForm({ venue, onSaved }: { venue?: Venue; onSaved: (v: Venu
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
+      {mapsKey() && <PlacesAutocomplete onPlace={fillFrom} />}
       <TextField label="Venue name" error={errors.name?.message} {...register('name')} />
       <TextField label="Street address" error={errors.addressLine?.message} {...register('addressLine')} />
       <div className="grid gap-4 sm:grid-cols-2">
@@ -79,7 +97,6 @@ export function VenueForm({ venue, onSaved }: { venue?: Venue; onSaved: (v: Venu
         <TextField label="Latitude (optional)" inputMode="decimal" error={errors.lat?.message} {...register('lat')} />
         <TextField label="Longitude (optional)" inputMode="decimal" error={errors.lng?.message} {...register('lng')} />
       </div>
-      <p className="text-xs text-muted-foreground">Map search arrives soon; coordinates help attendees find you meanwhile.</p>
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Saving…' : 'Save venue'}
       </Button>

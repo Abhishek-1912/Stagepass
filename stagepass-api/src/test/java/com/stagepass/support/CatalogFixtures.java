@@ -45,6 +45,33 @@ public class CatalogFixtures {
         return id;
     }
 
+    public UUID categoryId(String slug) {
+        return jdbc.queryForObject("select id from event_categories where slug = ?", UUID.class, slug);
+    }
+
+    /** A live (PUBLISHED) event with venue, cover and one ACTIVE ticket type of 100. */
+    public UUID publishedEvent(TestUsers.TestUser organizer, String title, OffsetDateTime start, String city,
+            long pricePaise) {
+        return publishedEvent(organizer, title, start, city, pricePaise, 12.9716, 77.5946, "music");
+    }
+
+    public UUID publishedEvent(TestUsers.TestUser organizer, String title, OffsetDateTime start, String city,
+            long pricePaise, Double lat, Double lng, String categorySlug) {
+        UUID venue = jdbc.queryForObject("""
+                insert into venues (organizer_id, name, address_line, city, state, pincode, lat, lng)
+                values (?, 'Test Arena', '1 MG Road', ?, 'Karnataka', '560001', ?, ?) returning id
+                """, UUID.class, organizer.organizerId(), city, lat, lng);
+        UUID event = jdbc.queryForObject("""
+                insert into events (organizer_id, category_id, venue_id, slug, title, summary, cover_image_url,
+                                    starts_at, ends_at, status, published_at)
+                values (?, ?, ?, ?, ?, 'A great night out', ?, ?, ?, 'PUBLISHED', now()) returning id
+                """, UUID.class, organizer.organizerId(), categoryId(categorySlug), venue,
+                "pub-" + UUID.randomUUID(), title, "https://res.cloudinary.com/demo/image/upload/stagepass/events/x/c.jpg",
+                start, start.plusHours(3));
+        ticketType(event, pricePaise, 100);
+        return event;
+    }
+
     public void setStatus(UUID eventId, String status) {
         jdbc.update("update events set status = ? where id = ?", status, eventId);
     }
