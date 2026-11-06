@@ -11,6 +11,9 @@ import { NotFoundPage } from '@/features/misc/NotFoundPage'
 import { BecomeOrganizerPage } from '@/features/organizer/BecomeOrganizerPage'
 import { OrganizerHomePage } from '@/features/organizer/OrganizerHomePage'
 import { OrganizerLayout } from '@/features/organizer/OrganizerLayout'
+import { EventEditorPage } from '@/features/organizer/events/EventEditorPage'
+import { EventsListPage } from '@/features/organizer/events/EventsListPage'
+import { VenuesPage } from '@/features/organizer/venues/VenuesPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -24,7 +27,13 @@ export const router = createBrowserRouter([
         <OrganizerLayout />
       </RequireAuth>
     ),
-    children: [{ index: true, element: <OrganizerHomePage /> }],
+    children: [
+      { index: true, element: <OrganizerHomePage /> },
+      { path: 'events', element: <EventsListPage /> },
+      { path: 'events/new', element: <EventEditorPage /> },
+      { path: 'events/:id/:step?', element: <EventEditorPage /> },
+      { path: 'venues', element: <VenuesPage /> },
+    ],
   },
   {
     element: <PublicLayout />,
