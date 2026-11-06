@@ -22,32 +22,74 @@ public class EmailRenderer {
     public RenderedEmail render(EmailTemplate template, Map<String, ?> data) {
         return switch (template) {
             case WELCOME -> welcome(data);
+            case ORGANIZER_APPROVED -> organizerApproved(data);
+            case ORGANIZER_REJECTED -> organizerRejected(data);
+            case EVENT_APPROVED -> eventApproved(data);
+            case EVENT_REJECTED -> eventRejected(data);
         };
     }
 
     private RenderedEmail welcome(Map<String, ?> data) {
         String name = firstName(data.get("name"));
-        String exploreUrl = webBaseUrl + "/explore";
         String subject = name == null ? "Welcome to Stagepass" : "Welcome to Stagepass, " + name;
         String greeting = "Hi " + (name == null ? "there" : name);
+        return build(subject, greeting,
+                "Your Stagepass account is ready. Discover concerts, comedy, tech meetups and food festivals near you, "
+                        + "book in seconds, and walk in with a QR ticket.",
+                null, "Explore events", webBaseUrl + "/explore");
+    }
 
-        String body = """
-                <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#171923">%s,</p>
-                <p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#3a3f51">Your Stagepass account is ready.
-                Discover concerts, comedy, tech meetups and food festivals near you, book in seconds, and walk in
-                with a QR ticket.</p>
-                """.formatted(HtmlUtils.htmlEscape(greeting));
-        String html = layout(subject, body, "Explore events", exploreUrl);
-        String text = """
-                %s,
+    private RenderedEmail organizerApproved(Map<String, ?> data) {
+        String org = str(data.get("orgName"), "your organization");
+        return build("You’re approved to sell on Stagepass", "Great news",
+                org + " is now an approved organizer on Stagepass. Create your first event, set ticket tiers, "
+                        + "and submit it for review — we’ll publish it once it’s checked.",
+                null, "Open organizer dashboard", webBaseUrl + "/organizer");
+    }
 
-                Your Stagepass account is ready. Discover events near you and book in seconds.
+    private RenderedEmail organizerRejected(Map<String, ?> data) {
+        String org = str(data.get("orgName"), "your organization");
+        return build("Update on your Stagepass organizer application", "Hello",
+                "We couldn’t approve the organizer application for " + org + " yet. Here’s what needs to change:",
+                str(data.get("reason"), "Please review your details."),
+                "Update and reapply", webBaseUrl + "/become-organizer");
+    }
 
-                Explore events: %s
+    private RenderedEmail eventApproved(Map<String, ?> data) {
+        String title = str(data.get("title"), "Your event");
+        return build("Your event is live: " + title, "It’s live",
+                title + " has been approved and is now on sale on Stagepass. Share the link to start selling tickets.",
+                null, "View event page", webBaseUrl + "/events/" + str(data.get("slug"), ""));
+    }
 
-                — Team Stagepass
-                """.formatted(greeting, exploreUrl);
-        return new RenderedEmail(subject, html, text);
+    private RenderedEmail eventRejected(Map<String, ?> data) {
+        String title = str(data.get("title"), "your event");
+        return build("Changes needed for " + title, "Almost there",
+                "Our team reviewed " + title + " and needs a few changes before it can go live:",
+                str(data.get("reason"), "Please review the event details."),
+                "Edit event", webBaseUrl + "/organizer/events/" + str(data.get("eventId"), "") + "/review");
+    }
+
+    /** One greeting, one paragraph, an optional highlighted note, and a button. */
+    private RenderedEmail build(String subject, String greeting, String paragraph, String note, String ctaLabel,
+            String ctaUrl) {
+        StringBuilder body = new StringBuilder()
+                .append("<p style=\"margin:0 0 16px;font-size:16px;line-height:24px;color:#171923\">")
+                .append(HtmlUtils.htmlEscape(greeting)).append(",</p>")
+                .append("<p style=\"margin:0 0 16px;font-size:16px;line-height:24px;color:#3a3f51\">")
+                .append(HtmlUtils.htmlEscape(paragraph)).append("</p>");
+        if (note != null) {
+            body.append("<div style=\"margin:0 0 16px;padding:14px 16px;border-radius:12px;background:#F0ECFE;"
+                    + "color:#3D26B8;font-size:15px;line-height:22px\">").append(HtmlUtils.htmlEscape(note))
+                    .append("</div>");
+        }
+        String text = greeting + ",\n\n" + paragraph + "\n" + (note == null ? "" : "\n" + note + "\n")
+                + "\n" + ctaLabel + ": " + ctaUrl + "\n\n— Team Stagepass\n";
+        return new RenderedEmail(subject, layout(subject, body.toString(), ctaLabel, ctaUrl), text);
+    }
+
+    private static String str(Object value, String fallback) {
+        return value instanceof String s && !s.isBlank() ? s.trim() : fallback;
     }
 
     private static String firstName(Object raw) {

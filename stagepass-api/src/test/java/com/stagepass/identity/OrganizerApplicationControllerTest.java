@@ -16,9 +16,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class OrganizerApplicationControllerTest extends PostgresIntegrationTest {
+public class OrganizerApplicationControllerTest extends PostgresIntegrationTest {
 
-    static final String VALID = """
+    public static final String VALID = """
             {"orgName":"Acme Live","bio":"Gigs in Pune","contactEmail":"hello@acme.test","contactPhone":"9876543210",
              "website":"https://acme.test","pan":"ABCDE1234F","gstin":"27ABCDE1234F1Z5","state":"Maharashtra",
              "payoutAccountName":"Acme Live LLP","payoutAccountNumber":"123456789012","payoutIfsc":"HDFC0001234"}

@@ -34,6 +34,41 @@ class EmailRendererTest {
     }
 
     @Test
+    void organizerRejectedEscapesReason() {
+        RenderedEmail email = renderer.render(EmailTemplate.ORGANIZER_REJECTED,
+                Map.of("orgName", "Acme", "reason", "<b>PAN mismatch</b>"));
+
+        assertThat(email.subject()).isEqualTo("Update on your Stagepass organizer application");
+        assertThat(email.html()).contains("&lt;b&gt;PAN mismatch&lt;/b&gt;").contains("https://stagepass.example/become-organizer");
+    }
+
+    @Test
+    void organizerApprovedLinksToDashboard() {
+        RenderedEmail email = renderer.render(EmailTemplate.ORGANIZER_APPROVED, Map.of("orgName", "Acme"));
+
+        assertThat(email.subject()).isEqualTo("You’re approved to sell on Stagepass");
+        assertThat(email.html()).contains("https://stagepass.example/organizer");
+    }
+
+    @Test
+    void eventApprovedSubjectHasTitle() {
+        RenderedEmail email = renderer.render(EmailTemplate.EVENT_APPROVED,
+                Map.of("title", "Sunburn Goa", "slug", "sunburn-goa-abc123"));
+
+        assertThat(email.subject()).isEqualTo("Your event is live: Sunburn Goa");
+        assertThat(email.html()).contains("https://stagepass.example/events/sunburn-goa-abc123");
+    }
+
+    @Test
+    void eventRejectedIncludesReasonAndEditLink() {
+        RenderedEmail email = renderer.render(EmailTemplate.EVENT_REJECTED,
+                Map.of("title", "Sunburn Goa", "reason", "Add venue photos", "eventId", "42"));
+
+        assertThat(email.subject()).isEqualTo("Changes needed for Sunburn Goa");
+        assertThat(email.text()).contains("Add venue photos").contains("https://stagepass.example/organizer/events/42/review");
+    }
+
+    @Test
     void missingNameFallsBackToFriendlyGreeting() {
         RenderedEmail email = renderer.render(EmailTemplate.WELCOME, Map.of());
 
