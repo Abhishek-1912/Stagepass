@@ -44,6 +44,9 @@ class OrganizerEventDataTest extends PostgresIntegrationTest {
     @Autowired
     PlatformTransactionManager txManager;
 
+    @Autowired
+    com.stagepass.organizer.service.OrganizerBookingQueries queries;
+
     private ResultActions getAs(TestUser user, String path, Object... vars) throws Exception {
         return mvc.perform(get(path, vars).header("Authorization", user.bearer()));
     }
@@ -149,5 +152,41 @@ class OrganizerEventDataTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
 
         assertThat(new String(body, StandardCharsets.UTF_8).split("\r\n")).hasSize(2001);
+    }
+
+    @Test
+    void exportReadsThroughAStreamingCursor() {
+        assertThat(queries.exportFetchSize()).isEqualTo(500);
+    }
+
+    @Test
+    void auditSurvivesAnExportThatFailsMidway() {
+        LiveEvent e = support.liveEvent(49900, 50);
+        support.confirmed(e, 2, users.attendee());
+        java.io.Writer broken = new java.io.Writer() {
+            private int writes;
+
+            @Override
+            public void write(char[] cbuf, int off, int len) throws java.io.IOException {
+                if (++writes > 1) {
+                    throw new java.io.IOException("client went away");
+                }
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                () -> queries.writeAttendeesCsv(e.organizer().organizerId(), e.organizer().id(), e.eventId(), broken))
+                .hasMessageContaining("client went away");
+
+        assertThat(jdbc.queryForObject("select count(*) from audit_logs where action = 'ATTENDEES_EXPORTED' and entity_id = ?",
+                Integer.class, e.eventId().toString())).isEqualTo(1);
     }
 }

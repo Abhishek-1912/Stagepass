@@ -61,7 +61,9 @@ export function SalesChart({ points, metric }: { points: DayPoint[]; metric: 'am
   const max = niceCeil(Math.max(...points.map(value)))
   const band = PLOT_W / points.length
   const barW = Math.max(2, Math.min(24, band - 2))
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max)
+  const fractions = [0, 0.25, 0.5, 0.75, 1].map((f) => f * max)
+  // Ticket counts are whole numbers: round and drop repeats (max 2 gives 0, 1, 2, not 0, 0, 1, 1, 2).
+  const ticks = metric === 'tickets' ? [...new Set(fractions.map(Math.round))] : fractions
   const axisLabel = (v: number) => (metric === 'amount' ? compactRupees.format(v / 100) : String(Math.round(v)))
   const xLabelAt = new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])
   const hovered = active === null ? null : points[active]
@@ -74,7 +76,7 @@ export function SalesChart({ points, metric }: { points: DayPoint[]; metric: 'am
           return (
             <g key={t}>
               <line x1={PAD.left} x2={W - PAD.right} y1={y} y2={y} className="stroke-border" strokeWidth={1} />
-              <text x={PAD.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground text-[10px]">
+              <text data-axis-label x={PAD.left - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground text-[10px]">
                 {axisLabel(t)}
               </text>
             </g>

@@ -50,6 +50,9 @@ public class OrganizationSettingsService {
         if (r.website() != null && !r.website().isBlank() && !isHttpsUrl(r.website())) {
             errors.add("website", "must be a full https:// address");
         }
+        if (r.contactEmail() != null && r.contactEmail().isBlank()) {
+            errors.add("contactEmail", "is required - attendees and Stagepass use it to reach you");
+        }
         if (r.payoutAccountNumber() != null && (r.payoutIfsc() == null || r.payoutIfsc().isBlank())) {
             errors.add("payoutIfsc", "is required when changing the account number");
         }
@@ -69,9 +72,10 @@ public class OrganizationSettingsService {
             o.setContactEmail(r.contactEmail());
         }
         if (r.contactPhone() != null) {
-            o.setContactPhone(r.contactPhone());
+            o.setContactPhone(r.contactPhone().isBlank() ? null : r.contactPhone());
         }
-        if (r.payoutAccountName() != null) {
+        if (r.payoutAccountName() != null && !r.payoutAccountName().isBlank()) {
+            // The payout account always needs a holder name, so blank means "no change" here.
             o.setPayoutAccountName(r.payoutAccountName());
         }
         if (r.payoutAccountNumber() != null) {

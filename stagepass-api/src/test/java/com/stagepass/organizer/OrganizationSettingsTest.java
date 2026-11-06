@@ -78,4 +78,21 @@ class OrganizationSettingsTest extends PostgresIntegrationTest {
         assertThat(jdbc.queryForObject("select org_name || '|' || slug from organizers where id = ?", String.class,
                 org.organizerId())).isEqualTo(before);
     }
+
+    @Test
+    void emptyValuesClearOptionalFields() throws Exception {
+        TestUser org = users.approvedOrganizer();
+        patchProfile(org, "{\"bio\":\"Gigs\",\"website\":\"https://acme.in\",\"contactEmail\":\"hi@acme.in\",\"contactPhone\":\"9876543210\"}")
+                .andExpect(status().isOk());
+
+        patchProfile(org, "{\"bio\":\"\",\"website\":\"\",\"contactPhone\":\"\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bio").doesNotExist())
+                .andExpect(jsonPath("$.website").doesNotExist())
+                .andExpect(jsonPath("$.contactPhone").doesNotExist())
+                .andExpect(jsonPath("$.contactEmail").value("hi@acme.in"));
+        // The contact email is required, so emptying it is refused rather than ignored.
+        patchProfile(org, "{\"contactEmail\":\"\"}").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value("contactEmail"));
+    }
 }

@@ -12,11 +12,15 @@ import com.stagepass.organizer.api.AttendeeRow;
 import com.stagepass.organizer.api.OrganizerBookingRow;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -46,11 +50,27 @@ public class OrganizerBookingQueries {
     private final NamedParameterJdbcTemplate sql;
     private final AuditLogService audit;
     private final Clock clock;
+    /** Same data source, but rows arrive in batches of 500 through a cursor instead of all at once. */
+    private final NamedParameterJdbcTemplate exportSql;
+    private final TransactionTemplate auditTx;
 
-    public OrganizerBookingQueries(NamedParameterJdbcTemplate sql, AuditLogService audit, Clock clock) {
+    public OrganizerBookingQueries(NamedParameterJdbcTemplate sql, AuditLogService audit, Clock clock,
+            PlatformTransactionManager txManager) {
         this.sql = sql;
         this.audit = audit;
         this.clock = clock;
+        JdbcTemplate streaming = new JdbcTemplate(sql.getJdbcTemplate().getDataSource());
+        streaming.setFetchSize(EXPORT_FETCH_SIZE);
+        this.exportSql = new NamedParameterJdbcTemplate(streaming);
+        this.auditTx = new TransactionTemplate(txManager);
+        this.auditTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    private static final int EXPORT_FETCH_SIZE = 500;
+
+    /** Fetch size of the export cursor (tests check the export streams). */
+    public int exportFetchSize() {
+        return exportSql.getJdbcTemplate().getFetchSize();
     }
 
     public OwnedEvent owned(UUID organizerId, UUID eventId) {
@@ -106,22 +126,30 @@ public class OrganizerBookingQueries {
         return page(where.toString(), ATTENDEE_SELECT, " order by b.confirmed_at, t.code", p, ATTENDEE, page, size);
     }
 
-    /** Writes every ticket of the event's sold bookings as CSV (BOM, header, CRLF) and audits the export. */
-    @Transactional
+    private static final String EXPORT_WHERE =
+            " where t.event_id = :event and b.status in ('CONFIRMED', 'PARTIALLY_REFUNDED', 'REFUNDED')";
+
+    /**
+     * Writes every ticket of the event's sold bookings as CSV (BOM, header, CRLF), streaming rows through a cursor.
+     * The export is audited first, in its own transaction, so it stays on record even if the download breaks off.
+     */
+    @Transactional(readOnly = true)
     public int writeAttendeesCsv(UUID organizerId, UUID actorId, UUID eventId, Writer out) {
         owned(organizerId, eventId);
+        MapSqlParameterSource p = new MapSqlParameterSource("event", eventId);
+        Integer count = sql.queryForObject("select count(*)" + ATTENDEE_FROM + EXPORT_WHERE, p, Integer.class);
+        int expected = count == null ? 0 : count;
+        auditTx.executeWithoutResult(s -> audit.record(actorId, "ATTENDEES_EXPORTED", "event", eventId.toString(), null,
+                Map.of("rows", expected)));
+
         int[] rows = {0};
         write(out, CsvWriter.BOM + CsvWriter.row(CSV_HEADER));
-        sql.query(ATTENDEE_SELECT + ATTENDEE_FROM + """
-                 where t.event_id = :event and b.status in ('CONFIRMED', 'PARTIALLY_REFUNDED', 'REFUNDED')
-                 order by b.confirmed_at, t.code
-                """, new MapSqlParameterSource("event", eventId), rs -> {
+        exportSql.query(ATTENDEE_SELECT + ATTENDEE_FROM + EXPORT_WHERE + " order by b.confirmed_at, t.code", p, rs -> {
             AttendeeRow r = ATTENDEE.mapRow(rs, rows[0]);
             write(out, CsvWriter.row(Arrays.asList(r.ticketCode(), r.ticketType(), r.holderName(), r.bookingCode(),
                     r.attendeeEmail(), r.attendeePhone(), r.status(), ist(r.bookedAt()), ist(r.checkedInAt()))));
             rows[0]++;
         });
-        audit.record(actorId, "ATTENDEES_EXPORTED", "event", eventId.toString(), null, Map.of("rows", rows[0]));
         return rows[0];
     }
 

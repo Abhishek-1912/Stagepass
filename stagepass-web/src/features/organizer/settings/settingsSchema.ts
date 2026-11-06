@@ -8,7 +8,7 @@ export const settingsSchema = z
     bio: z.string().max(1000, 'Keep it under 1000 characters'),
     logoUrl: z.string(),
     website: optional(z.string().regex(/^https:\/\/[^\s/]+\.[^\s]+$/, 'Enter a full https:// address')),
-    contactEmail: optional(z.string().email('Enter a valid email')),
+    contactEmail: z.string().trim().min(1, 'Contact email is required').email('Enter a valid email'),
     contactPhone: optional(z.string().regex(/^[6-9]\d{9}$/, 'Enter a 10-digit Indian mobile number')),
     payoutAccountName: z.string().max(120),
     changeAccount: z.boolean(),

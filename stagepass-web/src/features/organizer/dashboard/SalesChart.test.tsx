@@ -29,3 +29,9 @@ test('chart shows an empty state', () => {
   render(<SalesChart points={points.map((p) => ({ ...p, tickets: 0, amountPaise: 0 }))} metric="amount" />)
   expect(screen.getByText('No sales in this period')).toBeInTheDocument()
 })
+
+test('ticket axis uses distinct whole numbers for small counts', () => {
+  render(<SalesChart points={[{ date: '2026-11-12', tickets: 2, amountPaise: 99800 }, { date: '2026-11-13', tickets: 1, amountPaise: 49900 }]} metric="tickets" />)
+  const labels = Array.from(document.querySelectorAll('[data-axis-label]')).map((t) => t.textContent)
+  expect(labels).toEqual(['0', '1', '2'])
+})
