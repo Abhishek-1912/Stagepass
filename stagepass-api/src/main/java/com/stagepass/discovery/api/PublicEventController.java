@@ -17,9 +17,17 @@ import java.time.Duration;
 public class PublicEventController {
 
     private final EventSearchService search;
+    private final com.stagepass.discovery.service.PublicEventService events;
 
-    public PublicEventController(EventSearchService search) {
+    public PublicEventController(EventSearchService search, com.stagepass.discovery.service.PublicEventService events) {
         this.search = search;
+        this.events = events;
+    }
+
+    @GetMapping("/{slug}")
+    public ResponseEntity<PublicEventDetail> detail(@org.springframework.web.bind.annotation.PathVariable String slug) {
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(Duration.ofSeconds(30)).cachePublic())
+                .body(events.detail(slug));
     }
 
     @GetMapping
