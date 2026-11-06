@@ -133,6 +133,12 @@ public class PublicEventQueries {
         if (p.freeOnly()) {
             sql.append(" and t.min_price = 0");
         }
+        if (p.featuredOnly()) {
+            sql.append(" and e.is_featured");
+        }
+        if (p.excludeOnline()) {
+            sql.append(" and not e.is_online");
+        }
         if (p.organizerId() != null) {
             sql.append(" and e.organizer_id = :organizerId");
             params.addValue("organizerId", p.organizerId());

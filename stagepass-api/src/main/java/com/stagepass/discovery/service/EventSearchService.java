@@ -60,7 +60,7 @@ public class EventSearchService {
         errors.throwIfAny();
 
         var params = new EventSearchParams(q, blankToNull(raw.city()), blankToNull(raw.category()), min, max,
-                "true".equalsIgnoreCase(raw.free()), lat, lng, radius == null ? 50 : radius, sort, null, null, false);
+                "true".equalsIgnoreCase(raw.free()), lat, lng, radius == null ? 50 : radius, sort, null, null, false, false, false);
         var range = DateRanges.resolve(date, from, to, clock).orElse(null);
         return PageResponse.of(queries.search(params, range, PageRequests.of(raw.page(), raw.size(), Sort.unsorted())),
                 c -> c);
