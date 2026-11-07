@@ -7,6 +7,8 @@ import { publicEvent } from './testDetail'
 const discovery = vi.hoisted(() => ({ usePublicEvent: vi.fn() }))
 vi.mock('@/features/discovery/api', () => discovery)
 vi.mock('./ReportEventLink', () => ({ ReportEventLink: () => null }))
+vi.mock('@/features/engagement/ReviewsSection', () => ({ ReviewsSection: () => <section>reviews</section> }))
+vi.mock('@/features/engagement/SaveButton', () => ({ SaveButton: () => null }))
 vi.mock('@/features/checkout/api', () => ({ useQuote: () => ({ data: undefined, error: null }) }))
 const maps = vi.hoisted(() => ({ mapsKey: vi.fn(() => undefined as string | undefined) }))
 vi.mock('@/lib/maps', async (orig) => ({ ...(await orig<typeof import('@/lib/maps')>()), mapsKey: maps.mapsKey }))
