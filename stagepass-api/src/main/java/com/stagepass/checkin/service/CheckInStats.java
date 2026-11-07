@@ -72,7 +72,8 @@ public class CheckInStats {
             throw ApiException.notFound("Event");
         }
         MapSqlParameterSource p = new MapSqlParameterSource("event", eventId);
-        String where = " from scan_logs s left join tickets t on t.id = s.ticket_id left join gates g on g.id = s.gate_id"
+        String where = " from scan_logs s left join tickets t on t.id = s.ticket_id and t.event_id = s.event_id"
+                + " left join gates g on g.id = s.gate_id"
                 + " join users u on u.id = s.scanned_by where s.event_id = :event";
         if (result != null && !result.isBlank()) {
             String r = result.strip().toUpperCase();

@@ -92,3 +92,14 @@ test('event not in my list says so', () => {
   renderAt()
   expect(screen.getByText(/you no longer have access to this event's door/i)).toBeInTheDocument()
 })
+
+test('a gate removed by the organizer sends the doorman back to pick a gate', async () => {
+  api.useScannerEvents.mockReturnValue({ data: [event([{ id: 'g1', name: 'Gate 1', ticketTypeNames: [] }])], isPending: false })
+  api.scanTicket.mockRejectedValue(new ApiError(400, 'VALIDATION_FAILED', 'Request validation failed', [{ field: 'gateId', message: 'is not a gate of this event' }]))
+  renderAt('/scan/e1?gate=g1')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Simulate scan' }))
+
+  expect(await screen.findByText(/that gate was removed/i)).toBeInTheDocument()
+  expect(screen.getByText('Which gate are you at?')).toBeInTheDocument()
+})

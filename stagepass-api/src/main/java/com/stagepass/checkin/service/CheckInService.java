@@ -44,6 +44,7 @@ public class CheckInService {
             rs.getString("booking_status"), rs.getString("qr_nonce"), rs.getString("code"), rs.getString("holder_name"),
             rs.getObject("ticket_type_id", UUID.class), rs.getString("type_name"));
 
+    /** Read with {@code for update of t}: a refund or another scan holding the ticket is waited for, then seen. */
     private static final String TICKET_SELECT = """
             select t.id, t.event_id, e.title as event_title, t.status, b.status as booking_status, t.qr_nonce, t.code,
                    t.holder_name, t.ticket_type_id, tt.name as type_name
@@ -109,7 +110,7 @@ public class CheckInService {
                 """, new MapSqlParameterSource("ticket", t.id()).addValue("event", event.eventId()).addValue("user", userId)
                 .addValue("gate", gateId), UUID.class);
         if (!inserted.isEmpty()) {
-            sql.update("update tickets set status = 'CHECKED_IN', version = version + 1 where id = :ticket",
+            sql.update("update tickets set status = 'CHECKED_IN', version = version + 1 where id = :ticket and status = 'VALID'",
                     new MapSqlParameterSource("ticket", t.id()));
             return answer(event, userId, gateId, hasCode, t, VALID, "Welcome in", info(t), null, null);
         }
@@ -158,7 +159,7 @@ public class CheckInService {
         if (claims.isEmpty()) {
             return Optional.empty();
         }
-        return sql.query(TICKET_SELECT + " where t.id = :id", new MapSqlParameterSource("id", claims.get().ticketId()), TICKET)
+        return sql.query(TICKET_SELECT + " where t.id = :id for update of t", new MapSqlParameterSource("id", claims.get().ticketId()), TICKET)
                 .stream().findFirst()
                 .filter(t -> t.nonce().equals(claims.get().nonce()) && t.eventId().equals(claims.get().eventId()));
     }
@@ -168,7 +169,7 @@ public class CheckInService {
         if (normalized.isEmpty()) {
             return Optional.empty();
         }
-        return sql.query(TICKET_SELECT + " where t.code = :code", new MapSqlParameterSource("code", normalized), TICKET)
+        return sql.query(TICKET_SELECT + " where t.code = :code for update of t", new MapSqlParameterSource("code", normalized), TICKET)
                 .stream().findFirst();
     }
 

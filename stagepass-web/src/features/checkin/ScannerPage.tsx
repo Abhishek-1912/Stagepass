@@ -1,5 +1,5 @@
 import { ArrowLeft, DoorOpen } from 'lucide-react'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { PageLoader } from '@/components/feedback/PageLoader'
 import { Button } from '@/components/ui/button'
@@ -22,13 +22,18 @@ function NoAccess() {
   )
 }
 
-function GatePicker({ event, onPick }: { event: ScannerEvent; onPick: (g: GateOption) => void }) {
+function GatePicker({ event, onPick, notice }: { event: ScannerEvent; onPick: (g: GateOption) => void; notice?: string | null }) {
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 py-8">
       <Link to="/scan" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" aria-hidden /> My events
       </Link>
       <h1 className="text-2xl font-bold">{event.title}</h1>
+      {notice && (
+        <p role="alert" className="rounded-xl bg-amber-500/15 p-3 text-sm">
+          {notice}
+        </p>
+      )}
       <p className="text-muted-foreground">Which gate are you at?</p>
       <ul className="space-y-3">
         {event.gates.map((g) => (
@@ -50,8 +55,12 @@ function GatePicker({ event, onPick }: { event: ScannerEvent; onPick: (g: GateOp
   )
 }
 
-function Scanner({ event, gate, onChangeGate }: { event: ScannerEvent; gate: GateOption | null; onChangeGate: () => void }) {
-  const { scan, result, dismiss, busy, accessLost, error, counts } = useScan(event.id, gate?.id ?? null)
+function Scanner({ event, gate, onChangeGate, onGateGone }: { event: ScannerEvent; gate: GateOption | null; onChangeGate: () => void; onGateGone: () => void }) {
+  const { scan, result, dismiss, busy, accessLost, gateGone, error, counts } = useScan(event.id, gate?.id ?? null)
+
+  useEffect(() => {
+    if (gateGone) onGateGone()
+  }, [gateGone, onGateGone])
   const [code, setCode] = useState('')
 
   if (accessLost) return <NoAccess />
@@ -126,6 +135,13 @@ export function ScannerPage() {
   const { eventId = '' } = useParams()
   const [params, setParams] = useSearchParams()
   const events = useScannerEvents()
+  const [notice, setNotice] = useState<string | null>(null)
+  const { refetch } = events
+  const gateGone = useCallback(() => {
+    setNotice('That gate was removed by the organizer. Pick your gate again.')
+    setParams({}, { replace: true })
+    void refetch?.()
+  }, [refetch, setParams])
 
   if (events.isPending) return <PageLoader label="Opening the scanner" />
   const event = events.data?.find((e) => e.id === eventId)
@@ -134,7 +150,18 @@ export function ScannerPage() {
   const gateId = params.get('gate')
   const gate = event.gates.find((g) => g.id === gateId) ?? null
   if (event.gates.length > 0 && !gate) {
-    return <GatePicker event={event} onPick={(g) => setParams({ gate: g.id }, { replace: true })} />
+    return (
+      <GatePicker
+        event={event}
+        notice={notice}
+        onPick={(g) => {
+          setNotice(null)
+          setParams({ gate: g.id }, { replace: true })
+        }}
+      />
+    )
   }
-  return <Scanner key={gate?.id ?? 'none'} event={event} gate={gate} onChangeGate={() => setParams({}, { replace: true })} />
+  return (
+    <Scanner key={gate?.id ?? 'none'} event={event} gate={gate} onChangeGate={() => setParams({}, { replace: true })} onGateGone={gateGone} />
+  )
 }

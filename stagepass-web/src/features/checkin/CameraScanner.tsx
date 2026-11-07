@@ -28,7 +28,7 @@ export function CameraScanner({ onCode, paused }: { onCode: (text: string) => vo
     const qr = new Html5Qrcode(id, { verbose: false })
     scanner.current = qr
     const lifecycle = { stopped: false }
-    qr.start(
+    const started = qr.start(
       { facingMode: 'environment' },
       {
         fps: 10,
@@ -39,20 +39,24 @@ export function CameraScanner({ onCode, paused }: { onCode: (text: string) => vo
       },
       (text) => {
         const now = Date.now()
+        const prev = last.current
+        const same = prev !== null && prev.text === text
+        // Seeing the same code again keeps it 'recent', so a ticket left in view is never scanned twice.
+        if (same) last.current = { text, at: now }
         if (pausedRef.current) return
-        if (last.current && last.current.text === text && now - last.current.at < REPEAT_MS) return
+        if (same && now - prev.at < REPEAT_MS) return
         last.current = { text, at: now }
         latest.current(text)
       },
       () => {},
-    ).catch((e: unknown) => {
+    )
+    started.catch((e: unknown) => {
       if (!lifecycle.stopped) setFailed(e instanceof Error ? e.message : String(e))
     })
     return () => {
       lifecycle.stopped = true
-      if (qr.isScanning) {
-        void qr.stop().then(() => qr.clear()).catch(() => {})
-      }
+      // start() is asynchronous: stop the camera once it has actually started, even if we left before that.
+      void started.then(() => qr.stop()).then(() => qr.clear()).catch(() => {})
     }
   }, [id])
 
