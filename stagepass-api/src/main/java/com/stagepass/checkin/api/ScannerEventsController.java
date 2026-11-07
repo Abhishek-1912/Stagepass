@@ -38,7 +38,7 @@ public class ScannerEventsController {
     public List<ScannerEvent> events() {
         UUID user = currentUser.id();
         access.linkPendingInvites(user);
-        return sql.query("""
+        List<ScannerEvent> events = sql.query("""
                 select e.id, e.title, e.starts_at, e.ends_at, o.org_name,
                        case when e.is_online or v.id is null then 'Online' else v.name || ', ' || v.city end as venue,
                        (o.user_id = :user and o.status = 'APPROVED') as owner
@@ -56,5 +56,23 @@ public class ScannerEventsController {
                 rs.getString("title"), rs.getObject("starts_at", OffsetDateTime.class),
                 rs.getObject("ends_at", OffsetDateTime.class), rs.getString("venue"), rs.getString("org_name"),
                 rs.getBoolean("owner"), List.of()));
+        if (events.isEmpty()) {
+            return events;
+        }
+        java.util.Map<UUID, List<GateOption>> gates = new java.util.HashMap<>();
+        sql.query("""
+                select g.event_id, g.id, g.name,
+                       coalesce((select array_agg(tt.name order by tt.sort_order, tt.name)
+                                 from gate_ticket_types x join ticket_types tt on tt.id = x.ticket_type_id
+                                 where x.gate_id = g.id), '{}'::text[]) as types
+                from gates g where g.event_id in (:events)
+                order by g.sort_order, g.name
+                """, new MapSqlParameterSource("events", events.stream().map(ScannerEvent::id).toList()), rs -> {
+            gates.computeIfAbsent(rs.getObject("event_id", UUID.class), k -> new java.util.ArrayList<>())
+                    .add(new GateOption(rs.getObject("id", UUID.class), rs.getString("name"),
+                            java.util.Arrays.asList((String[]) rs.getArray("types").getArray())));
+        });
+        return events.stream().map(e -> new ScannerEvent(e.id(), e.title(), e.startsAt(), e.endsAt(), e.venue(),
+                e.organizerName(), e.owner(), gates.getOrDefault(e.id(), List.of()))).toList();
     }
 }
