@@ -100,6 +100,26 @@ class AdminRefundTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void refusedRefundAfterTheEventSaysItIsQueuedNotUnchanged() throws Exception {
+        TestUser admin = users.admin();
+        LiveEvent e = support.liveEvent(49900, 20);
+        BookingResponse b = support.confirmed(e, 1, users.attendee());
+        jdbc.update("update events set status = 'COMPLETED' where id = ?", e.eventId());
+        String pay = jdbc.queryForObject("select razorpay_payment_id from payments where booking_id = ?", String.class, b.id());
+        com.stagepass.support.SharedRazorpay.server().failPath("/v1/payments/" + pay + "/refund", 400);
+        try {
+            refund(admin, b.id(), "[]", true)
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("queued for retry")))
+                    .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("unchanged"))));
+        } finally {
+            com.stagepass.support.SharedRazorpay.server().clearFailures();
+        }
+        assertThat(jdbc.queryForObject("select status from tickets where booking_id = ?", String.class, b.id())).isEqualTo("REFUNDED");
+        assertThat(jdbc.queryForObject("select needs_retry from refunds where booking_id = ?", Boolean.class, b.id())).isTrue();
+    }
+
+    @Test
     void retryOnlyForFailedNeedingRetry() throws Exception {
         TestUser admin = users.admin();
         BookingResponse b = support.confirmed(support.liveEvent(49900, 20), 1, users.attendee());

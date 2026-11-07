@@ -197,7 +197,13 @@ public class RefundService {
             audit.record(adminId, "REFUND_ISSUED", "booking", b.getId().toString(), null, details);
             return r.getId();
         });
-        submitOrFail(refundId);
+        if (submit(refundId) == RefundStatus.FAILED) {
+            // After a refusal the tickets are either restored or stay refunded with the refund queued for retry.
+            boolean queued = Boolean.TRUE.equals(tx.execute(s -> refunds.findById(refundId).map(Refund::isNeedsRetry).orElse(false)));
+            throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, queued
+                    ? "Razorpay refused the refund. The tickets stay refunded and the refund is queued for retry - see Transactions > Refunds."
+                    : "The refund could not be started with the payment gateway. The tickets are unchanged - please try again.");
+        }
         return bookingService.view(bookingId);
     }
 
