@@ -176,6 +176,31 @@ public class RefundService {
         return view(organizerId, eventId, refundId);
     }
 
+    // ---------------------------------------------------------------- admin
+
+    /**
+     * Admin refunds the chosen tickets (or every live, unclaimed one) whatever the event's policy, returning the
+     * convenience fee when {@code includeFee}. Same apply/submit path as an organizer approval.
+     */
+    public BookingResponse adminRefund(UUID adminId, UUID bookingId, List<UUID> ticketIds, boolean includeFee,
+            String reason) {
+        UUID refundId = tx.execute(s -> {
+            Booking b = lockRefundable(bookingId);
+            List<Ticket> chosen = pick(b, ticketIds == null ? List.of() : ticketIds);
+            Refund r = apply(b, chosen, RefundKind.ADMIN, includeFee, null, adminId, reason, null);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("refundId", r.getId().toString());
+            details.put("byAdmin", true);
+            details.put("includeFee", includeFee);
+            details.put("tickets", chosen.size());
+            details.put("reason", reason);
+            audit.record(adminId, "REFUND_ISSUED", "booking", b.getId().toString(), null, details);
+            return r.getId();
+        });
+        submitOrFail(refundId);
+        return bookingService.view(bookingId);
+    }
+
     // ---------------------------------------------------------------- event cancellation
 
     /**
