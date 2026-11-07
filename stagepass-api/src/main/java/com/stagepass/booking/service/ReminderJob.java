@@ -75,6 +75,11 @@ public class ReminderJob {
         return reminded;
     }
 
+    /** Claims and reminds one booking in its own transaction; false when it was skipped. */
+    boolean claimAndRemind(UUID bookingId, OffsetDateTime now) {
+        return Boolean.TRUE.equals(tx.execute(s -> remind(bookingId, now)));
+    }
+
     private static final String CANDIDATES = """
             select b.id from bookings b join events e on e.id = b.event_id
             where b.reminder_sent_at is null and b.status in ('CONFIRMED', 'PARTIALLY_REFUNDED')
@@ -93,6 +98,8 @@ public class ReminderJob {
                 select b.id from bookings b join events e on e.id = b.event_id
                 where b.id = :id and b.reminder_sent_at is null and e.status = 'PUBLISHED'
                   and e.starts_at > :from and e.starts_at <= :to
+                  and b.status in ('CONFIRMED', 'PARTIALLY_REFUNDED')
+                  and exists (select 1 from tickets t where t.booking_id = b.id and t.status = 'VALID')
                 for update of b skip locked
                 """, window(now).addValue("id", bookingId), UUID.class);
         if (claimed.isEmpty()) {

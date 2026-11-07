@@ -153,6 +153,9 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 
 ## Deploy (Render)
 
+The full step-by-step guide, with every setting and a first-deploy checklist, is **[docs/deploy.md](docs/deploy.md)**.
+In short:
+
 1. Push this repository to GitHub.
 2. In Render: **New → Blueprint**, pick the repository; Render reads `render.yaml`.
 3. Enter the `sync: false` secrets when prompted. Set the API's `WEB_BASE_URL` to the static site's URL and the

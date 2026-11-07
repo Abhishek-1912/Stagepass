@@ -36,12 +36,27 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /** JSON API: nothing may load or frame it. */
+    static final String API_CSP = "default-src 'none'; frame-ancestors 'none'";
+    /** The share page only shows a preview image and redirects with a meta refresh (no script). */
+    static final String SHARE_PAGE_CSP = "default-src 'none'; img-src https:; style-src 'unsafe-inline'; frame-ancestors 'none'";
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemAuthEntryPoint entryPoint,
-            ProblemAccessDeniedHandler accessDeniedHandler, StagepassAuthenticationConverter converter)
+            ProblemAccessDeniedHandler accessDeniedHandler, StagepassAuthenticationConverter converter,
+            com.stagepass.common.ratelimit.RateLimiter rateLimiter, com.stagepass.common.error.ProblemWriter problems,
+            com.stagepass.common.ratelimit.RateLimitProperties rateLimits)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .cors(cors -> { })
+                .headers(h -> h
+                        .frameOptions(f -> f.deny())
+                        .referrerPolicy(r -> r.policy(org.springframework.security.web.header.writers
+                                .ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                                "Permissions-Policy", "camera=(), microphone=(), geolocation=()"))
+                        .addHeaderWriter((request, response) -> response.setHeader("Content-Security-Policy",
+                                request.getRequestURI().startsWith(request.getContextPath() + "/e/") ? SHARE_PAGE_CSP : API_CSP)))
                 .httpBasic(b -> b.disable())
                 .formLogin(f -> f.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -60,6 +75,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)));
+        http.addFilterAfter(new com.stagepass.common.ratelimit.RateLimitFilter(rateLimiter, problems, rateLimits),
+                org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 
@@ -108,7 +125,7 @@ public class SecurityConfig {
         cors.setAllowedOrigins(props.cors().allowedOrigins());
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
-        cors.setExposedHeaders(List.of("Location"));
+        cors.setExposedHeaders(List.of("Location", "Retry-After"));
         cors.setMaxAge(Duration.ofHours(1));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cors);

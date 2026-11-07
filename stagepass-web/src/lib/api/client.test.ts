@@ -32,7 +32,21 @@ describe('api client', () => {
     nav.redirectToLogin.mockReset()
   })
 
-  test('parses problem details into ApiError', async () => {
+  test('429 becomes a friendly ApiError with the wait', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: 429, code: 'RATE_LIMITED', detail: 'Too many requests. Please wait a moment and try again.' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '12' },
+      }),
+    )
+    await expect(api('/bookings', { method: 'POST' })).rejects.toMatchObject({
+      status: 429,
+      code: 'RATE_LIMITED',
+      detail: 'Too many requests. Try again in 12 seconds.',
+    })
+  })
+
+    test('parses problem details into ApiError', async () => {
     fetchMock.mockResolvedValue(
       json(409, { status: 409, code: 'ACCOUNT_CONFLICT', detail: 'Email in use' }, 'application/problem+json'),
     )

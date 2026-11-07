@@ -114,4 +114,14 @@ class SavedEventTest extends PostgresIntegrationTest {
         mvc.perform(get("/api/v1/me/saved")).andExpect(status().isUnauthorized());
         mvc.perform(put("/api/v1/me/saved/" + UUID.randomUUID())).andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void suspendedOrganizersEventsLeaveTheSavedList() throws Exception {
+        TestUser me = users.attendee();
+        LiveEvent e = support.liveEvent(49900, 20);
+        save(me, e.eventId()).andExpect(status().isNoContent());
+        jdbc.update("update organizers set status = 'SUSPENDED' where id = ?", e.organizer().organizerId());
+        mvc.perform(get("/api/v1/me/saved").header("Authorization", me.bearer()))
+                .andExpect(jsonPath("$.totalItems").value(0));
+    }
 }

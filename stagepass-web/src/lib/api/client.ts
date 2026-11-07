@@ -33,6 +33,10 @@ async function send(url: string, init: RequestInit): Promise<Response> {
 
 async function parse<T>(response: Response): Promise<T> {
   if (response.status === 204) return undefined as T
+  if (response.status === 429) {
+    const wait = Math.max(1, Number.parseInt(response.headers.get('Retry-After') ?? '', 10) || 30)
+    throw new ApiError(429, 'RATE_LIMITED', `Too many requests. Try again in ${wait} seconds.`)
+  }
   const text = await response.text()
   const body: unknown = text ? JSON.parse(text) : undefined
   if (!response.ok) throw ApiError.fromProblem(response.status, body)

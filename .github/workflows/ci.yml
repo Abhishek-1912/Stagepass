@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/**']
   pull_request:
 
 concurrency:
@@ -25,6 +25,15 @@ jobs:
           cache: maven
       - name: Build and test
         run: ./mvnw -B verify
+      - name: Report failed tests
+        if: failure()
+        run: |
+          for f in target/surefire-reports/TEST-*.xml; do
+            if grep -q -E 'failures="[1-9]|errors="[1-9]' "$f"; then
+              msg=$(grep -o -m1 -E '(failure|error) message="[^"]{0,500}' "$f" | head -1)
+              echo "::error title=Failed test $(basename "$f" .xml)::$msg"
+            fi
+          done
 
   web:
     name: Web
@@ -47,3 +56,14 @@ jobs:
       - run: npm run lint
       - run: npx vitest run
       - run: npm run build
+      - run: npm run check:bundle
+      - name: Playwright smoke tests
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: stagepass-web/test-results/
+          retention-days: 7

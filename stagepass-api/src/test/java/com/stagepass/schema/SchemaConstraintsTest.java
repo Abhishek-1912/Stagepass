@@ -86,4 +86,17 @@ class SchemaConstraintsTest extends PostgresIntegrationTest {
 
         assertThatThrownBy(() -> fx.user("dup@test.in")).isInstanceOf(DuplicateKeyException.class);
     }
+
+    @Test
+    void everyForeignKeyIsIndexed() {
+        java.util.List<String> missing = jdbc.queryForList("""
+                select c.conrelid::regclass::text || '(' || a.attname || ')'
+                from pg_constraint c
+                join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
+                where c.contype = 'f' and c.connamespace = 'public'::regnamespace
+                  and not exists (select 1 from pg_index i where i.indrelid = c.conrelid and i.indkey[0] = c.conkey[1])
+                order by 1
+                """, String.class);
+        assertThat(missing).as("foreign keys without an index starting with their column").isEmpty();
+    }
 }

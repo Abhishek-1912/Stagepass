@@ -158,4 +158,12 @@ class AdminPayoutTest extends PostgresIntegrationTest {
         }
         mvc.perform(get("/api/v1/admin/payouts").header("Authorization", rich.bearer())).andExpect(status().isForbidden());
     }
+
+    @Test
+    void shortReferenceAfterTrimIs400() throws Exception {
+        TestUser admin = users.admin();
+        TestUser org = payableOrganizer(50_000);
+        record(admin, org.organizerId(), 10_000, "  ab  ", today())
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0].field").value("reference"));
+    }
 }
