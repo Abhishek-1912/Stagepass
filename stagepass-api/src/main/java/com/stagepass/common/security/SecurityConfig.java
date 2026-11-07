@@ -38,7 +38,9 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemAuthEntryPoint entryPoint,
-            ProblemAccessDeniedHandler accessDeniedHandler, StagepassAuthenticationConverter converter)
+            ProblemAccessDeniedHandler accessDeniedHandler, StagepassAuthenticationConverter converter,
+            com.stagepass.common.ratelimit.RateLimiter rateLimiter, com.stagepass.common.error.ProblemWriter problems,
+            com.stagepass.common.ratelimit.RateLimitProperties rateLimits)
             throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .cors(cors -> { })
@@ -60,6 +62,8 @@ public class SecurityConfig {
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)));
+        http.addFilterAfter(new com.stagepass.common.ratelimit.RateLimitFilter(rateLimiter, problems, rateLimits),
+                org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 
