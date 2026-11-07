@@ -7,6 +7,7 @@ import com.stagepass.discovery.service.PopularityJob;
 import com.stagepass.support.PostgresIntegrationTest;
 import com.stagepass.support.TestUsers;
 import org.junit.jupiter.api.Test;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -47,5 +48,21 @@ class PopularityJobTest extends PostgresIntegrationTest {
                 .isEqualTo(4.0);
         assertThat(jdbc.queryForObject("select popularity_score from events where id = ?", Double.class, quiet.eventId()))
                 .isZero();
+    }
+
+    @Test
+    void savesAddHalfATicket() {
+        LiveEvent e = support.liveEvent(0, 100);
+        confirmedDaysAgo(e, 2, 0);
+        jdbc.update("insert into saved_events (user_id, event_id) values (?, ?), (?, ?)", users.attendee().id(), e.eventId(),
+                users.attendee().id(), e.eventId());
+        UUID old = users.attendee().id();
+        jdbc.update("insert into saved_events (user_id, event_id, created_at) values (?, ?, now() - interval '40 days')", old,
+                e.eventId());
+
+        job.recompute();
+
+        assertThat(jdbc.queryForObject("select popularity_score from events where id = ?", Double.class, e.eventId()))
+                .isEqualTo(3.0);
     }
 }
