@@ -2,6 +2,7 @@
 import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { configDefaults } from 'vitest/config'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
@@ -14,6 +15,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     css: false,
     env: {
       VITE_API_BASE_URL: 'http://api.test',

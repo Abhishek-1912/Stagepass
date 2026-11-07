@@ -8,3 +8,7 @@ dist/
 .vscode/
 stagepass-api/src/main/resources/application-local.properties
 .superpowers/
+
+# Playwright
+stagepass-web/playwright-report/
+stagepass-web/test-results/
