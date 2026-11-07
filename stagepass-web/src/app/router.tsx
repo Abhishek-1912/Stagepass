@@ -16,6 +16,8 @@ import { BookingDetailPage } from '@/features/bookings/BookingDetailPage'
 import { MyBookingsPage } from '@/features/bookings/MyBookingsPage'
 import { TicketViewPage } from '@/features/bookings/TicketViewPage'
 import { CheckoutPage, ResumeCheckoutPage } from '@/features/checkout/CheckoutPage'
+import { ScannerHomePage } from '@/features/checkin/ScannerHomePage'
+import { ScannerPage } from '@/features/checkin/ScannerPage'
 import { ExplorePage } from '@/features/discovery/ExplorePage'
 import { EventPage } from '@/features/event/EventPage'
 import { HomePage } from '@/features/home/HomePage'
@@ -37,6 +39,22 @@ export const router = createBrowserRouter([
   { path: '/register', element: <RegisterPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  {
+    path: '/scan',
+    element: (
+      <RequireAuth>
+        <ScannerHomePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/scan/:eventId',
+    element: (
+      <RequireAuth>
+        <ScannerPage />
+      </RequireAuth>
+    ),
+  },
   {
     path: '/organizer',
     element: (
