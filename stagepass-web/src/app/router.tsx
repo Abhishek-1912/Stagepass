@@ -27,6 +27,7 @@ import { OrganizerLayout } from '@/features/organizer/OrganizerLayout'
 import { EventEditorPage } from '@/features/organizer/events/EventEditorPage'
 import { EventManagePage } from '@/features/organizer/manage/EventManagePage'
 import { PayoutsPage } from '@/features/organizer/payouts/PayoutsPage'
+import { StaffPage } from '@/features/organizer/staff/StaffPage'
 import { OrganizationSettingsPage } from '@/features/organizer/settings/OrganizationSettingsPage'
 import { EventsListPage } from '@/features/organizer/events/EventsListPage'
 import { VenuesPage } from '@/features/organizer/venues/VenuesPage'
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: 'events/:id/manage', element: <EventManagePage /> },
       { path: 'events/:id/:step?', element: <EventEditorPage /> },
       { path: 'venues', element: <VenuesPage /> },
+      { path: 'staff', element: <StaffPage /> },
       { path: 'payouts', element: <PayoutsPage /> },
       { path: 'settings', element: <OrganizationSettingsPage /> },
     ],
