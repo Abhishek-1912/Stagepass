@@ -3,6 +3,10 @@ import { event, fakeApi } from './fixtures/api'
 import { signIn } from './fixtures/session'
 
 test('browse → event → checkout → ticket', async ({ page }) => {
+  const problems: string[] = []
+  page.on('console', (m) => m.type() === 'error' && problems.push(`console: ${m.text()}`))
+  page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
+  page.on('response', (r) => r.status() >= 400 && problems.push(`${r.status()} ${r.request().method()} ${r.url()}`))
   await signIn(page)
   await fakeApi(page)
 
@@ -14,6 +18,12 @@ test('browse → event → checkout → ticket', async ({ page }) => {
   await page.getByRole('button', { name: /^Continue/ }).click()
 
   await expect(page).toHaveURL(/\/checkout\//)
+  try {
+    await page.getByLabel('Full name').waitFor({ timeout: 20_000 })
+  } catch {
+    const text = (await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 600)
+    throw new Error(`Checkout form did not appear at ${page.url()}. Page says: ${text}. Problems: ${problems.join(' | ')}`)
+  }
   await page.getByLabel('Full name').fill('Asha Rao')
   await page.getByLabel('Email').fill('asha@stagepass.test')
   await page.getByRole('button', { name: /^Pay / }).click()

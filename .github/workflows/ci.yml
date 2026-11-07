@@ -25,6 +25,15 @@ jobs:
           cache: maven
       - name: Build and test
         run: ./mvnw -B verify
+      - name: Report failed tests
+        if: failure()
+        run: |
+          for f in target/surefire-reports/TEST-*.xml; do
+            if grep -q -E 'failures="[1-9]|errors="[1-9]' "$f"; then
+              msg=$(grep -o -m1 -E '(failure|error) message="[^"]{0,500}' "$f" | head -1)
+              echo "::error title=Failed test $(basename "$f" .xml)::$msg"
+            fi
+          done
 
   web:
     name: Web
