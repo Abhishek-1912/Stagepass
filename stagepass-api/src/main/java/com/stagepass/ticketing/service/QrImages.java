@@ -13,14 +13,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Map;
 
-/** QR code PNGs (ZXing), for PDFs. Error correction M, one-module quiet zone. */
+/** QR code PNGs (ZXing), for PDFs. Error correction M, the standard four-module quiet zone (scanners need it). */
 @Component
 public class QrImages {
 
     public byte[] png(String text, int sizePx) {
         try {
             var matrix = new QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, sizePx, sizePx,
-                    Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M, EncodeHintType.MARGIN, 1));
+                    Map.of(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M, EncodeHintType.MARGIN, 4));
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             MatrixToImageWriter.writeToStream(matrix, "PNG", out);
             return out.toByteArray();

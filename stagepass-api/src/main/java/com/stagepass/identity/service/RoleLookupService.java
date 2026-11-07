@@ -37,13 +37,9 @@ public class RoleLookupService {
 
     /** Empty if the user has never been provisioned. */
     public Optional<AccountSnapshot> snapshot(UUID userId) {
-        AccountSnapshot cached = cache.getIfPresent(userId);
-        if (cached != null) {
-            return Optional.of(cached);
-        }
-        Optional<AccountSnapshot> loaded = load(userId);
-        loaded.ifPresent(s -> cache.put(userId, s));
-        return loaded;
+        // Atomic per key: an eviction during a load waits for it and then removes it, so a stale load can't stick.
+        // A null result (unknown user) is not cached.
+        return Optional.ofNullable(cache.get(userId, id -> load(id).orElse(null)));
     }
 
     public Set<RoleName> rolesFor(UUID userId) {
@@ -70,7 +66,8 @@ public class RoleLookupService {
         cache.invalidate(userId);
     }
 
-    private Optional<AccountSnapshot> load(UUID userId) {
+    /** Reads roles and status from the database; overridable for tests. */
+    protected Optional<AccountSnapshot> load(UUID userId) {
         var rows = jdbc.queryForList("""
                 select u.status, r.name as role
                 from users u

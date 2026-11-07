@@ -53,7 +53,10 @@ public class SavedEventService {
     public PageResponse<SavedEventView> list(UUID userId, Integer page, Integer size) {
         Pageable pageable = PageRequests.of(page, size, Sort.unsorted());
         MapSqlParameterSource p = new MapSqlParameterSource("user", userId);
-        Long total = sql.queryForObject("select count(*) from saved_events where user_id = :user", p, Long.class);
+        Long total = sql.queryForObject("""
+                select count(*) from saved_events s join events e on e.id = s.event_id
+                join organizers o on o.id = e.organizer_id where s.user_id = :user and o.status <> 'SUSPENDED'
+                """, p, Long.class);
         p.addValue("limit", pageable.getPageSize()).addValue("offset", pageable.getOffset());
         List<SavedEventView> rows = sql.query("""
                 select e.id, e.slug, e.title, e.summary, e.cover_image_url, e.starts_at, e.ends_at, e.is_online,
@@ -62,12 +65,14 @@ public class SavedEventService {
                        e.status, s.created_at as saved_at
                 from saved_events s
                 join events e on e.id = s.event_id
+                join organizers o on o.id = e.organizer_id and o.status <> 'SUSPENDED'
                 join event_categories c on c.id = e.category_id
                 left join venues v on v.id = e.venue_id
                 left join lateral (
                     select min(tt.price_paise) filter (where tt.status = 'ACTIVE') as min_price,
-                           coalesce(sum(greatest(ti.total - ti.sold - ti.held, 0)) filter (where tt.status = 'ACTIVE'), 0)
-                               as available
+                           coalesce(sum(greatest(ti.total - ti.sold - ti.held, 0))
+                                    filter (where tt.status = 'ACTIVE'
+                                            and (tt.sale_ends_at is null or tt.sale_ends_at > now())), 0) as available
                     from ticket_types tt join ticket_inventory ti on ti.ticket_type_id = tt.id where tt.event_id = e.id
                 ) t on true
                 where s.user_id = :user

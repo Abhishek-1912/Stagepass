@@ -99,6 +99,9 @@ public class AdminPayoutService {
         long amount = r.amountPaise();
         long payable = balances.forOrganizer(organizerId).payablePaise();
         FieldErrors errors = FieldErrors.start();
+        if (reference.length() < 3 || reference.length() > 100) {
+            errors.add("reference", "must be 3 to 100 characters");
+        }
         if (amount <= 0) {
             errors.add("amountPaise", "must be more than zero");
         } else if (amount > payable) {
