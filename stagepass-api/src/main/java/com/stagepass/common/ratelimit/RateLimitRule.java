@@ -11,13 +11,14 @@ import java.util.Optional;
 /** The rate limits (spec 11): which requests, keyed by user or IP, and how many per period. */
 public enum RateLimitRule {
 
-    BOOKING(Key.USER, 10, List.of("POST /api/v1/bookings")),
-    VERIFY(Key.USER, 20, List.of("POST /api/v1/payments/verify")),
-    REFUND(Key.USER, 10, List.of("POST /api/v1/me/bookings/*/refunds")),
-    SCAN(Key.USER, 120, List.of("POST /api/v1/checkin/scan")),
-    WRITE(Key.USER, 20, List.of("POST /api/v1/events/*/reports", "PUT /api/v1/events/*/review",
+    BOOKING(Key.USER, 10, 10, List.of("POST /api/v1/bookings")),
+    VERIFY(Key.USER, 20, 20, List.of("POST /api/v1/payments/verify")),
+    REFUND(Key.USER, 10, 10, List.of("POST /api/v1/me/bookings/*/refunds")),
+    SCAN(Key.USER, 120, 120, List.of("POST /api/v1/checkin/scan")),
+    WRITE(Key.USER, 20, 20, List.of("POST /api/v1/events/*/reports", "PUT /api/v1/events/*/review",
             "POST /api/v1/uploads/signature", "POST /api/v1/organizer-applications")),
-    PUBLIC(Key.IP, 120, List.of("GET /api/v1/public/**", "POST /api/v1/public/quote"));
+    /** Signed-in browsing counts per user; anonymous visitors share their IP's larger allowance (campus Wi-Fi, mobile NAT). */
+    PUBLIC(Key.USER, 120, 600, List.of("GET /api/v1/public/**", "POST /api/v1/public/quote"));
 
     public enum Key { USER, IP }
 
@@ -25,11 +26,13 @@ public enum RateLimitRule {
 
     private final Key key;
     private final int perMinute;
+    private final int anonymousPerMinute;
     private final List<String> patterns;
 
-    RateLimitRule(Key key, int perMinute, List<String> patterns) {
+    RateLimitRule(Key key, int perMinute, int anonymousPerMinute, List<String> patterns) {
         this.key = key;
         this.perMinute = perMinute;
+        this.anonymousPerMinute = anonymousPerMinute;
         this.patterns = patterns;
     }
 
@@ -37,8 +40,9 @@ public enum RateLimitRule {
         return key;
     }
 
-    public int capacity() {
-        return perMinute;
+    /** Requests per period: per signed-in user, or per IP when the request has no user. */
+    public int capacity(boolean anonymous) {
+        return anonymous ? anonymousPerMinute : perMinute;
     }
 
     public Duration period() {

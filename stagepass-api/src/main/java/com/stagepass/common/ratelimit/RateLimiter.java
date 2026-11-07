@@ -18,9 +18,11 @@ public class RateLimiter {
             .expireAfterAccess(Duration.ofMinutes(10))
             .build();
 
+    /** {@code key} starts with "user:" or "ip:"; IP keys get the rule's anonymous allowance. */
     public ConsumptionProbe tryConsume(RateLimitRule rule, String key) {
+        int capacity = rule.capacity(key.startsWith("ip:"));
         Bucket bucket = buckets.get(rule.name() + ":" + key, k -> Bucket.builder()
-                .addLimit(Bandwidth.builder().capacity(rule.capacity()).refillIntervally(rule.capacity(), rule.period()).build())
+                .addLimit(Bandwidth.builder().capacity(capacity).refillIntervally(capacity, rule.period()).build())
                 .build());
         return bucket.tryConsumeAndReturnRemaining(1);
     }

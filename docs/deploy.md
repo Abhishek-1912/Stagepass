@@ -133,6 +133,10 @@ Do these in order on `<web>`; each should work without errors.
 10. Optional, with Razorpay test keys: book a paid ticket and pay with UPI `success@razorpay`. The booking confirms;
     Razorpay → Webhooks shows the delivery as successful.
 
+11. Rate limits key on the visitor's real IP. Render's proxy adds it to `X-Forwarded-For`, and the API reads it
+    from the right of that header (Tomcat `RemoteIpValve`), so a visitor can't fake it. If many unrelated visitors
+    ever report "Too many requests" together, ask your developer to check the client address the API sees in the logs.
+
 If any step fails, note the step number and what you saw, and share the API logs from Render (*stagepass-api →
 Logs*) with your developer. The logs are JSON lines; they never contain passwords or keys.
 

@@ -58,4 +58,16 @@ class SecurityHeadersTest extends PostgresIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }
+
+    @Test
+    void browsersMayReadRetryAfter() throws Exception {
+        mvc.perform(get("/api/v1/public/categories").header("Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Expose-Headers", org.hamcrest.Matchers.containsString("Retry-After")));
+    }
+
+    @Test
+    void prodTrustsOnlyTheRightmostForwardedAddress() throws Exception {
+        String prod = java.nio.file.Files.readString(java.nio.file.Path.of("src/main/resources/application-prod.properties"));
+        assertThat(prod).contains("server.forward-headers-strategy=native").doesNotContain("forward-headers-strategy=framework");
+    }
 }

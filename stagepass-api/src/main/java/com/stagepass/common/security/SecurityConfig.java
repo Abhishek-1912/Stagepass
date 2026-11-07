@@ -125,7 +125,7 @@ public class SecurityConfig {
         cors.setAllowedOrigins(props.cors().allowedOrigins());
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Idempotency-Key"));
-        cors.setExposedHeaders(List.of("Location"));
+        cors.setExposedHeaders(List.of("Location", "Retry-After"));
         cors.setMaxAge(Duration.ofHours(1));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cors);

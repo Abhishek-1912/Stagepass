@@ -71,7 +71,7 @@ class RateLimitTest extends PostgresIntegrationTest {
     void publicGetsAreLimitedByIp() throws Exception {
         String ip = ip();
         int last = 0;
-        for (int i = 0; i < 121; i++) {
+        for (int i = 0; i < 601; i++) {
             last = mvc.perform(get("/api/v1/public/categories").with(from(ip))).andReturn().getResponse().getStatus();
         }
         assertThat(last).isEqualTo(429);
@@ -107,5 +107,26 @@ class RateLimitTest extends PostgresIntegrationTest {
         }
         assertThat(mvc.perform(post("/api/v1/checkin/scan").with(from(ip)).header("Authorization", door.bearer())
                 .contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().getResponse().getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void signedInBrowsingIsCountedPerUserNotPerIp() throws Exception {
+        String ip = ip();
+        for (int i = 0; i < 130; i++) {
+            mvc.perform(get("/api/v1/public/categories").with(from(ip)).header("Authorization", users.attendee().bearer()));
+        }
+        assertThat(mvc.perform(get("/api/v1/public/categories").with(from(ip))).andReturn().getResponse().getStatus())
+                .as("anonymous visitor on the same IP").isEqualTo(200);
+    }
+
+    @Test
+    void anonymousIpAllowsACampusCrowd() throws Exception {
+        String ip = ip();
+        int last = 0;
+        for (int i = 0; i < 600; i++) {
+            last = mvc.perform(get("/api/v1/public/categories").with(from(ip))).andReturn().getResponse().getStatus();
+        }
+        assertThat(last).isEqualTo(200);
+        assertThat(mvc.perform(get("/api/v1/public/categories").with(from(ip))).andReturn().getResponse().getStatus()).isEqualTo(429);
     }
 }
