@@ -1,9 +1,12 @@
 import type { Page, Route } from '@playwright/test'
 import type { PublicEventCard } from '../../src/features/discovery/types'
-import { publicEvent } from '../../src/features/event/testDetail'
+import { publicEvent, publicType } from '../../src/features/event/testDetail'
 import { testBooking } from '../../src/features/bookings/testBooking'
 
-export const event = publicEvent()
+/** The cart only accepts UUID ticket-type ids, like the real API returns. */
+const TYPE_ID = '7b0c3a52-9d1e-4f6b-8a21-3c5d7e9f1a24'
+
+export const event = publicEvent({ ticketTypes: [publicType({ id: TYPE_ID })] })
 
 export const card: PublicEventCard = {
   id: event.id,
@@ -25,7 +28,7 @@ export const card: PublicEventCard = {
 }
 
 const price = { subtotalPaise: 49900, feePaise: 2248, feeGstPaise: 405, totalPaise: 52553, commissionPaise: 0, ticketCount: 1 }
-const items = [{ ticketTypeId: 't1', name: 'General', quantity: 1, unitPricePaise: 49900, amountPaise: 49900 }]
+const items = [{ ticketTypeId: TYPE_ID, name: 'General', quantity: 1, unitPricePaise: 49900, amountPaise: 49900 }]
 
 export const pending = testBooking({
   status: 'PENDING_PAYMENT',
@@ -39,7 +42,7 @@ export const pending = testBooking({
 export const confirmed = testBooking({
   items,
   price,
-  tickets: [{ id: 'k1', code: 'SP-AAAA-2222', ticketTypeId: 't1', ticketTypeName: 'General', holderName: 'Asha Rao', status: 'VALID', qrToken: 'e2e.token' }],
+  tickets: [{ id: 'k1', code: 'SP-AAAA-2222', ticketTypeId: TYPE_ID, ticketTypeName: 'General', holderName: 'Asha Rao', status: 'VALID', qrToken: 'e2e.token' }],
 })
 
 const page0 = <T>(items: T[]) => ({ items, page: 0, size: 20, totalItems: items.length, totalPages: items.length ? 1 : 0 })
@@ -72,7 +75,6 @@ type Handler = (route: Route, url: URL) => unknown
 
 /** Answers http://api.test/** from fixtures. Unknown calls get a 404 problem so a missing stub is easy to spot. */
 export async function fakeApi(page: Page, overrides: Record<string, Handler> = {}) {
-  let paid = false
   const json = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
@@ -90,11 +92,8 @@ export async function fakeApi(page: Page, overrides: Record<string, Handler> = {
     'GET /api/v1/me/notifications': (r) => json(r, page0([])),
     'GET /api/v1/me/bookings': (r) => json(r, page0([summary])),
     'POST /api/v1/bookings': (r) => json(r, pending, 201),
-    'POST /api/v1/payments/verify': (r) => {
-      paid = true
-      return json(r, confirmed)
-    },
-    [`GET /api/v1/me/bookings/${confirmed.id}`]: (r) => json(r, paid ? confirmed : confirmed),
+    'POST /api/v1/payments/verify': (r) => json(r, confirmed),
+    [`GET /api/v1/me/bookings/${confirmed.id}`]: (r) => json(r, confirmed),
     ...overrides,
   }
 
