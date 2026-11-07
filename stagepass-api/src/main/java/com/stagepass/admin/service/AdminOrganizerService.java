@@ -14,6 +14,7 @@ import com.stagepass.identity.repository.UserRepository;
 import com.stagepass.identity.service.RoleLookupService;
 import com.stagepass.notification.service.EmailOutbox;
 import com.stagepass.notification.service.EmailTemplate;
+import com.stagepass.notification.service.NotificationService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,9 +33,11 @@ public class AdminOrganizerService {
     private final AuditLogService audit;
     private final EmailOutbox outbox;
     private final PayoutCrypto crypto;
+    private final NotificationService notifications;
 
     public AdminOrganizerService(OrganizerRepository organizers, UserRepository users, RoleLookupService roleLookup,
-            AuditLogService audit, EmailOutbox outbox, PayoutCrypto crypto) {
+            AuditLogService audit, EmailOutbox outbox, PayoutCrypto crypto, NotificationService notifications) {
+        this.notifications = notifications;
         this.organizers = organizers;
         this.users = users;
         this.roleLookup = roleLookup;
@@ -61,6 +64,9 @@ public class AdminOrganizerService {
         audit.record(adminId, "ROLE_GRANTED", "user", o.getUserId().toString(), null,
                 Map.of("role", RoleName.ORGANIZER.name()));
         outbox.enqueue(o.getContactEmail(), EmailTemplate.ORGANIZER_APPROVED, Map.of("orgName", o.getOrgName()));
+        notifications.notify(o.getUserId(), "ORGANIZER_APPROVED", "You're approved to sell on Stagepass",
+                o.getOrgName() + " can now create events and sell tickets.", "/organizer",
+                "organizer-decision:" + o.getId() + ":APPROVED");
         roleLookup.evictAfterCommit(o.getUserId());
         return OrganizerApplicationResponse.from(o, crypto);
     }
@@ -76,6 +82,9 @@ public class AdminOrganizerService {
                 Map.of("status", "REJECTED", "reason", reason));
         outbox.enqueue(o.getContactEmail(), EmailTemplate.ORGANIZER_REJECTED,
                 Map.of("orgName", o.getOrgName(), "reason", reason));
+        notifications.notify(o.getUserId(), "ORGANIZER_REJECTED", "Update on your organizer application",
+                "Reason: " + reason, "/become-organizer",
+                "organizer-decision:" + o.getId() + ":REJECTED:" + o.getReviewedAt().toInstant().toEpochMilli());
         return OrganizerApplicationResponse.from(o, crypto);
     }
 

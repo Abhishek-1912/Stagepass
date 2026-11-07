@@ -1,6 +1,7 @@
 import { MapPin, Video } from 'lucide-react'
 import { Link } from 'react-router'
 import type { PublicEventCard } from '@/features/discovery/types'
+import { SaveButton } from '@/features/engagement/SaveButton'
 import { cloudinary } from '@/lib/images'
 import { formatPaise } from '@/lib/money'
 import { cn } from '@/lib/utils'
@@ -31,12 +32,10 @@ export function EventCard({ event, variant = 'grid' }: { event: PublicEventCard;
   const start = new Date(event.startsAt)
   const where = event.online ? 'Online' : [event.venueName, event.city].filter(Boolean).join(' · ')
   return (
+    <div className={cn('relative', variant === 'rail' && 'w-72 shrink-0 snap-start')}>
     <Link
       to={`/events/${event.slug}`}
-      className={cn(
-        'group block overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-        variant === 'rail' && 'w-72 shrink-0 snap-start',
-      )}
+      className="group block overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       <div className={cn('relative overflow-hidden bg-muted', variant === 'large' ? 'aspect-[16/9]' : 'aspect-[3/2]')}>
         {event.coverImageUrl ? (
@@ -54,7 +53,7 @@ export function EventCard({ event, variant = 'grid' }: { event: PublicEventCard;
           <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">{month.format(start)}</span>
         </div>
         {event.featured && (
-          <span className="bg-gradient-brand absolute right-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white">
+          <span className="bg-gradient-brand absolute bottom-3 right-3 rounded-full px-2.5 py-1 text-[11px] font-semibold text-white">
             Featured
           </span>
         )}
@@ -76,5 +75,7 @@ export function EventCard({ event, variant = 'grid' }: { event: PublicEventCard;
         </div>
       </div>
     </Link>
+    <SaveButton eventId={event.id} className="absolute right-3 top-3" />
+    </div>
   )
 }

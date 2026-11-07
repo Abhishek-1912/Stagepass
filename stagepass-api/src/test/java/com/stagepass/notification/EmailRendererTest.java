@@ -147,6 +147,15 @@ class EmailRendererTest {
     }
 
     @Test
+    void reminderSaysTomorrowOrToday() {
+        RenderedEmail email = renderer.render(EmailTemplate.EVENT_REMINDER, booking(Map.of("day", "Tomorrow")));
+        assertThat(email.subject()).startsWith("Tomorrow: ");
+        assertThat(email.html()).contains("/account/bookings/");
+        RenderedEmail today = renderer.render(EmailTemplate.EVENT_REMINDER, booking(Map.of("day", "Today")));
+        assertThat(today.subject()).startsWith("Today: ");
+    }
+
+    @Test
     void templatesEscapeHtml() {
         RenderedEmail email = renderer.render(EmailTemplate.BOOKING_EXPIRED, booking(Map.of("title", "<b>x</b>")));
         assertThat(email.html()).contains("&lt;b&gt;x&lt;/b&gt;").doesNotContain("<b>x</b>");

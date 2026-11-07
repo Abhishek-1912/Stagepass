@@ -36,6 +36,10 @@ public class ImageUrlPolicy {
         return "stagepass/events/" + eventId;
     }
 
+    public static String avatarFolder(java.util.UUID userId) {
+        return "stagepass/avatars/" + userId;
+    }
+
     public static String organizerFolder(java.util.UUID userId) {
         return "stagepass/organizers/" + userId;
     }

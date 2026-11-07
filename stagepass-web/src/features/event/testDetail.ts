@@ -18,6 +18,7 @@ export function publicType(overrides: Partial<PublicTicketType> = {}): PublicTic
 
 export function publicEvent(overrides: Partial<PublicEventDetail> = {}): PublicEventDetail {
   return {
+    rating: { average: null, count: 0 },
     id: 'e1',
     slug: 'sunburn-goa-abc123',
     title: 'Sunburn Goa',

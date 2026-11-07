@@ -36,6 +36,11 @@ public class UploadService {
         return sign(ImageUrlPolicy.eventFolder(eventId));
     }
 
+    public UploadSignatureResponse signAvatar(UUID userId) {
+        requireConfigured();
+        return sign(ImageUrlPolicy.avatarFolder(userId));
+    }
+
     public UploadSignatureResponse signLogo(UUID userId) {
         requireConfigured();
         return sign(ImageUrlPolicy.organizerFolder(userId));

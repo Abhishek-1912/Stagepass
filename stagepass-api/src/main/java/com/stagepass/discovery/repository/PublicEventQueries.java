@@ -27,7 +27,8 @@ public class PublicEventQueries {
             6371 * 2 * asin(sqrt(power(sin(radians(v.lat - :lat) / 2), 2)
               + cos(radians(:lat)) * cos(radians(v.lat)) * power(sin(radians(v.lng - :lng) / 2), 2)))""";
 
-    private static final RowMapper<PublicEventCard> CARD = (rs, i) -> new PublicEventCard(
+    /** Maps the columns of the public card select (also used by saved events). */
+    public static final RowMapper<PublicEventCard> CARD = (rs, i) -> new PublicEventCard(
             rs.getObject("id", UUID.class), rs.getString("slug"), rs.getString("title"), rs.getString("summary"),
             rs.getString("cover_image_url"), rs.getObject("starts_at", OffsetDateTime.class),
             rs.getObject("ends_at", OffsetDateTime.class), rs.getBoolean("is_online"), rs.getString("venue_name"),

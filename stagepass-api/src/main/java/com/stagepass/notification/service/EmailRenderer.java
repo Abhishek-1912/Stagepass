@@ -34,6 +34,7 @@ public class EmailRenderer {
             case EVENT_CHANGED -> eventChanged(data);
             case STAFF_INVITED -> staffInvited(data);
             case PAYOUT_RECORDED -> payoutRecorded(data);
+            case EVENT_REMINDER -> eventReminder(data);
         };
     }
 
@@ -241,6 +242,17 @@ public class EmailRenderer {
                         + ". Sign in to Stagepass with this email address and open the scanner on your phone to check guests in.",
                 "Door staff can scan tickets only - you won't see sales or attendee lists.", "Open the scanner",
                 webBaseUrl + "/scan");
+    }
+
+    private RenderedEmail eventReminder(Map<String, ?> data) {
+        String title = str(data.get("title"), "Your event");
+        String day = str(data.get("day"), "Soon");
+        String when = when(data.get("startsAt"));
+        return build(day + ": " + title, "Hi " + str(firstName(data.get("attendeeName")), "there"),
+                title + (when == null ? " is coming up" : " starts " + when) + ". Keep your QR ticket ready on your phone"
+                        + " - it is in My bookings and attached to your confirmation email.",
+                "Doors can get busy close to start time, so plan to arrive a little early.", eventDetails(data),
+                "View my tickets", bookingUrl(data));
     }
 
     private RenderedEmail payoutRecorded(Map<String, ?> data) {

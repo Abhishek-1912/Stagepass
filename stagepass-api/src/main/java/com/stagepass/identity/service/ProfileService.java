@@ -1,6 +1,8 @@
 package com.stagepass.identity.service;
 
+import com.stagepass.catalog.service.ImageUrlPolicy;
 import com.stagepass.common.error.ApiException;
+import com.stagepass.common.error.FieldErrors;
 import com.stagepass.identity.api.UpdateProfileRequest;
 import com.stagepass.identity.domain.User;
 import com.stagepass.identity.repository.UserRepository;
@@ -13,9 +15,11 @@ import java.util.UUID;
 public class ProfileService {
 
     private final UserRepository users;
+    private final ImageUrlPolicy images;
 
-    public ProfileService(UserRepository users) {
+    public ProfileService(UserRepository users, ImageUrlPolicy images) {
         this.users = users;
+        this.images = images;
     }
 
     @Transactional(readOnly = true)
@@ -36,7 +40,17 @@ public class ProfileService {
             user.setCity(request.city().trim());
         }
         if (request.avatarUrl() != null) {
-            user.setAvatarUrl(request.avatarUrl());
+            String url = request.avatarUrl().strip();
+            if (url.isEmpty()) {
+                user.setAvatarUrl(null);
+            } else if (images.isOwned(url, ImageUrlPolicy.avatarFolder(userId))) {
+                user.setAvatarUrl(url);
+            } else {
+                throw FieldErrors.single("avatarUrl", "must be a photo uploaded to Stagepass");
+            }
+        }
+        if (request.emailReminders() != null) {
+            user.setEmailReminders(request.emailReminders());
         }
         return user;
     }

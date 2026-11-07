@@ -12,9 +12,10 @@ export interface Me {
   avatarUrl: string | null
   city: string | null
   roles: Role[]
+  emailReminders: boolean
 }
 
-export type ProfileUpdate = Partial<Pick<Me, 'fullName' | 'phone' | 'city' | 'avatarUrl'>>
+export type ProfileUpdate = Partial<Pick<Me, 'fullName' | 'phone' | 'city' | 'avatarUrl' | 'emailReminders'>>
 
 export const meQueryKey = ['me'] as const
 

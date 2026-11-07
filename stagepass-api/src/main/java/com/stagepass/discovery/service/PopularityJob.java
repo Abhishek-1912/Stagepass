@@ -6,7 +6,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Hourly "Popular" ranking: tickets confirmed in the last 7 days count fully, 8-30 days ago half.
+ * Hourly "Popular" ranking: tickets confirmed in the last 7 days count fully, 8-30 days ago half, and each save
+ * made in the last 30 days counts as half a ticket (spec 8.7).
  * Only rows whose score changes are written.
  */
 @Component
@@ -37,9 +38,17 @@ public class PopularityJob {
                     left join booking_items i on i.booking_id = b.id
                     where e.status = 'PUBLISHED'
                     group by e.id
+                ),
+                saves as (
+                    select s.event_id, 0.5 * count(*) as score from saved_events s
+                    where s.created_at >= now() - interval '30 days' group by s.event_id
+                ),
+                totals as (
+                    select sc.id, sc.score + coalesce(sv.score, 0)::double precision as score
+                    from scores sc left join saves sv on sv.event_id = sc.id
                 )
                 update events e set popularity_score = s.score
-                from scores s
+                from totals s
                 where e.id = s.id and e.popularity_score is distinct from s.score
                 """);
     }

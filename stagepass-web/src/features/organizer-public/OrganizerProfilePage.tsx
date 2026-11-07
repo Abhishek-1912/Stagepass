@@ -41,6 +41,9 @@ export function OrganizerProfilePage() {
           {organizer.bio && <p className="max-w-2xl text-muted-foreground">{organizer.bio}</p>}
           <p className="text-sm text-muted-foreground">
             {upcomingCount} upcoming · {pastEvents} past {pastEvents === 1 ? 'event' : 'events'}
+            {data.rating?.count > 0 && data.rating.average != null && (
+              <> · ★ {data.rating.average.toFixed(1)} from {data.rating.count} {data.rating.count === 1 ? 'review' : 'reviews'}</>
+            )}
           </p>
         </div>
         {organizer.website && (

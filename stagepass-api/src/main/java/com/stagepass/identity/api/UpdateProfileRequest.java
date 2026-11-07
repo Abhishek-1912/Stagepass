@@ -9,5 +9,6 @@ public record UpdateProfileRequest(
         @Size(min = 1, max = 120) String fullName,
         @Pattern(regexp = "^[6-9]\\d{9}$", message = "must be a 10-digit Indian mobile number") String phone,
         @Size(max = 80) String city,
-        @URL @Size(max = 500) String avatarUrl) {
+        @URL @Size(max = 500) String avatarUrl,
+        Boolean emailReminders) {
 }

@@ -1,4 +1,4 @@
-import { LayoutDashboard, LogOut, Shield, Ticket, User } from 'lucide-react'
+import { Heart, LayoutDashboard, LogOut, Shield, Ticket, User } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -59,6 +59,11 @@ export function HeaderAccount() {
         <DropdownMenuItem asChild>
           <Link to="/account/bookings">
             <Ticket /> My tickets
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/account/saved">
+            <Heart /> Saved events
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

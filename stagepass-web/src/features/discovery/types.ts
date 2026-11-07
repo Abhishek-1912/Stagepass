@@ -89,6 +89,13 @@ export interface PublicEventDetail {
   minPricePaise: number | null
   ticketTypes: PublicTicketType[]
   organizer: PublicOrganizer
+  rating: RatingSummary
+}
+
+export interface RatingSummary {
+  /** One decimal; null when there are no reviews. */
+  average: number | null
+  count: number
 }
 
 export interface PublicOrganizerProfile {
@@ -96,4 +103,5 @@ export interface PublicOrganizerProfile {
   upcoming: PublicEventCard[]
   upcomingCount: number
   pastEvents: number
+  rating: RatingSummary
 }

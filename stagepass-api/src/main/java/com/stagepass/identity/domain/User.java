@@ -38,6 +38,9 @@ public class User {
 
     private String city;
 
+    @Column(name = "email_reminders", nullable = false)
+    private boolean emailReminders = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
@@ -105,6 +108,14 @@ public class User {
 
     public void setCity(String city) {
         this.city = city;
+    }
+
+    public boolean isEmailReminders() {
+        return emailReminders;
+    }
+
+    public void setEmailReminders(boolean emailReminders) {
+        this.emailReminders = emailReminders;
     }
 
     public UserStatus getStatus() {

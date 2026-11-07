@@ -13,6 +13,8 @@ import { cloudinary } from '@/lib/images'
 import { formatPaise } from '@/lib/money'
 import { downloadIcs } from './calendar'
 import { ReportEventLink } from './ReportEventLink'
+import { SaveButton } from '@/features/engagement/SaveButton'
+import { ReviewsSection } from '@/features/engagement/ReviewsSection'
 import { ShareButton } from './ShareButton'
 import { TicketPicker } from '@/features/checkout/TicketPicker'
 import { bookLabel, canBook } from './bookLabel'
@@ -28,6 +30,11 @@ function refundText(e: PublicEventDetail): string {
 function timeRange(e: PublicEventDetail): string {
   const end = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })
   return `${formatEventDate(e.startsAt)} – ${end.format(new Date(e.endsAt)).toUpperCase()}`
+}
+
+/** True once the event's end time has passed. */
+function hasEnded(endsAt: string): boolean {
+  return new Date(endsAt).getTime() < Date.now()
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -90,6 +97,7 @@ export function EventPage() {
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <ShareButton url={shareUrl} title={event.title} className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20" />
+            {event.status === 'PUBLISHED' && !hasEnded(event.endsAt) && <SaveButton eventId={event.id} />}
             {event.status === 'PUBLISHED' && (
               <Button
                 variant="outline"
@@ -164,6 +172,9 @@ export function EventPage() {
               </span>
             </Link>
           </Section>
+          {(hasEnded(event.endsAt) || (event.rating?.count ?? 0) > 0) && (
+            <ReviewsSection event={{ id: event.id, slug: event.slug, endsAt: event.endsAt, status: event.status, rating: event.rating ?? { average: null, count: 0 } }} />
+          )}
           <Section title="Refunds">
             <p className="text-muted-foreground">{refundText(event)}</p>
           </Section>

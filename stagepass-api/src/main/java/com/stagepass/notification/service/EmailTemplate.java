@@ -14,5 +14,6 @@ public enum EmailTemplate {
     EVENT_CANCELLED,
     EVENT_CHANGED,
     STAFF_INVITED,
-    PAYOUT_RECORDED
+    PAYOUT_RECORDED,
+    EVENT_REMINDER
 }
