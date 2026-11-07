@@ -1,5 +1,6 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/features/auth/AuthProvider'
 import { isApiError } from '@/lib/api/ApiError'
@@ -9,6 +10,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        // Rate-limited page loads say so; actions (mutations) already show their own error messages.
+        queryCache: new QueryCache({
+          onError: (error) => {
+            if (isApiError(error) && error.status === 429) toast.error(error.detail, { id: 'rate-limited' })
+          },
+        }),
         defaultOptions: {
           queries: {
             staleTime: 30_000,

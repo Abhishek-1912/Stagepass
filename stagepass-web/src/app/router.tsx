@@ -1,46 +1,49 @@
 import { createBrowserRouter } from 'react-router'
+import { lazyPage } from './lazyPage'
 import { PublicLayout } from '@/components/layout/PublicLayout'
-import { AccountPage } from '@/features/account/AccountPage'
-import { SavedEventsPage } from '@/features/account/SavedEventsPage'
-import { AdminLayout } from '@/features/admin/AdminLayout'
-import { AdminPayoutsPage } from '@/features/admin/AdminPayoutsPage'
-import { AuditLogPage } from '@/features/admin/AuditLogPage'
-import { CategoriesPage } from '@/features/admin/CategoriesPage'
-import { EventReviewDetail } from '@/features/admin/EventReviewDetail'
-import { EventReviewPage } from '@/features/admin/EventReviewPage'
-import { OrganizerDetailPage } from '@/features/admin/OrganizerDetailPage'
-import { OrganizersPage } from '@/features/admin/OrganizersPage'
-import { OverviewPage } from '@/features/admin/OverviewPage'
-import { ReportsPage } from '@/features/admin/ReportsPage'
-import { SettingsPage } from '@/features/admin/SettingsPage'
-import { TransactionsPage } from '@/features/admin/TransactionsPage'
-import { UsersPage } from '@/features/admin/UsersPage'
-import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { LoginPage } from '@/features/auth/LoginPage'
-import { RegisterPage } from '@/features/auth/RegisterPage'
 import { RequireAuth } from '@/features/auth/RequireAuth'
-import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
-import { BookingDetailPage } from '@/features/bookings/BookingDetailPage'
-import { MyBookingsPage } from '@/features/bookings/MyBookingsPage'
-import { TicketViewPage } from '@/features/bookings/TicketViewPage'
-import { CheckoutPage, ResumeCheckoutPage } from '@/features/checkout/CheckoutPage'
-import { ScannerHomePage } from '@/features/checkin/ScannerHomePage'
-import { ScannerPage } from '@/features/checkin/ScannerPage'
 import { ExplorePage } from '@/features/discovery/ExplorePage'
 import { EventPage } from '@/features/event/EventPage'
 import { HomePage } from '@/features/home/HomePage'
 import { OrganizerProfilePage } from '@/features/organizer-public/OrganizerProfilePage'
 import { NotFoundPage } from '@/features/misc/NotFoundPage'
-import { BecomeOrganizerPage } from '@/features/organizer/BecomeOrganizerPage'
-import { OrganizerHomePage } from '@/features/organizer/OrganizerHomePage'
-import { OrganizerLayout } from '@/features/organizer/OrganizerLayout'
-import { EventEditorPage } from '@/features/organizer/events/EventEditorPage'
-import { EventManagePage } from '@/features/organizer/manage/EventManagePage'
-import { PayoutsPage } from '@/features/organizer/payouts/PayoutsPage'
-import { StaffPage } from '@/features/organizer/staff/StaffPage'
-import { OrganizationSettingsPage } from '@/features/organizer/settings/OrganizationSettingsPage'
-import { EventsListPage } from '@/features/organizer/events/EventsListPage'
-import { VenuesPage } from '@/features/organizer/venues/VenuesPage'
+
+const AccountPage = lazyPage(() => import('@/features/account/AccountPage').then((m) => m.AccountPage))
+const SavedEventsPage = lazyPage(() => import('@/features/account/SavedEventsPage').then((m) => m.SavedEventsPage))
+const AdminLayout = lazyPage(() => import('@/features/admin/AdminLayout').then((m) => m.AdminLayout))
+const AdminPayoutsPage = lazyPage(() => import('@/features/admin/AdminPayoutsPage').then((m) => m.AdminPayoutsPage))
+const AuditLogPage = lazyPage(() => import('@/features/admin/AuditLogPage').then((m) => m.AuditLogPage))
+const CategoriesPage = lazyPage(() => import('@/features/admin/CategoriesPage').then((m) => m.CategoriesPage))
+const EventReviewDetail = lazyPage(() => import('@/features/admin/EventReviewDetail').then((m) => m.EventReviewDetail))
+const EventReviewPage = lazyPage(() => import('@/features/admin/EventReviewPage').then((m) => m.EventReviewPage))
+const OrganizerDetailPage = lazyPage(() => import('@/features/admin/OrganizerDetailPage').then((m) => m.OrganizerDetailPage))
+const OrganizersPage = lazyPage(() => import('@/features/admin/OrganizersPage').then((m) => m.OrganizersPage))
+const OverviewPage = lazyPage(() => import('@/features/admin/OverviewPage').then((m) => m.OverviewPage))
+const ReportsPage = lazyPage(() => import('@/features/admin/ReportsPage').then((m) => m.ReportsPage))
+const SettingsPage = lazyPage(() => import('@/features/admin/SettingsPage').then((m) => m.SettingsPage))
+const TransactionsPage = lazyPage(() => import('@/features/admin/TransactionsPage').then((m) => m.TransactionsPage))
+const UsersPage = lazyPage(() => import('@/features/admin/UsersPage').then((m) => m.UsersPage))
+const ForgotPasswordPage = lazyPage(() => import('@/features/auth/ForgotPasswordPage').then((m) => m.ForgotPasswordPage))
+const RegisterPage = lazyPage(() => import('@/features/auth/RegisterPage').then((m) => m.RegisterPage))
+const ResetPasswordPage = lazyPage(() => import('@/features/auth/ResetPasswordPage').then((m) => m.ResetPasswordPage))
+const BookingDetailPage = lazyPage(() => import('@/features/bookings/BookingDetailPage').then((m) => m.BookingDetailPage))
+const MyBookingsPage = lazyPage(() => import('@/features/bookings/MyBookingsPage').then((m) => m.MyBookingsPage))
+const TicketViewPage = lazyPage(() => import('@/features/bookings/TicketViewPage').then((m) => m.TicketViewPage))
+const CheckoutPage = lazyPage(() => import('@/features/checkout/CheckoutPage').then((m) => m.CheckoutPage))
+const ResumeCheckoutPage = lazyPage(() => import('@/features/checkout/CheckoutPage').then((m) => m.ResumeCheckoutPage))
+const ScannerHomePage = lazyPage(() => import('@/features/checkin/ScannerHomePage').then((m) => m.ScannerHomePage))
+const ScannerPage = lazyPage(() => import('@/features/checkin/ScannerPage').then((m) => m.ScannerPage))
+const BecomeOrganizerPage = lazyPage(() => import('@/features/organizer/BecomeOrganizerPage').then((m) => m.BecomeOrganizerPage))
+const OrganizerHomePage = lazyPage(() => import('@/features/organizer/OrganizerHomePage').then((m) => m.OrganizerHomePage))
+const OrganizerLayout = lazyPage(() => import('@/features/organizer/OrganizerLayout').then((m) => m.OrganizerLayout))
+const EventEditorPage = lazyPage(() => import('@/features/organizer/events/EventEditorPage').then((m) => m.EventEditorPage))
+const EventManagePage = lazyPage(() => import('@/features/organizer/manage/EventManagePage').then((m) => m.EventManagePage))
+const PayoutsPage = lazyPage(() => import('@/features/organizer/payouts/PayoutsPage').then((m) => m.PayoutsPage))
+const StaffPage = lazyPage(() => import('@/features/organizer/staff/StaffPage').then((m) => m.StaffPage))
+const OrganizationSettingsPage = lazyPage(() => import('@/features/organizer/settings/OrganizationSettingsPage').then((m) => m.OrganizationSettingsPage))
+const EventsListPage = lazyPage(() => import('@/features/organizer/events/EventsListPage').then((m) => m.EventsListPage))
+const VenuesPage = lazyPage(() => import('@/features/organizer/venues/VenuesPage').then((m) => m.VenuesPage))
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
