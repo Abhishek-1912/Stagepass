@@ -65,15 +65,30 @@ public class EventLifecycleService {
 
     @Transactional
     public EventResponse cancel(UUID organizerId, UUID actorId, UUID eventId, String reason) {
-        Event e = events.owned(organizerId, eventId);
+        return doCancel(events.owned(organizerId, eventId), actorId, reason, false);
+    }
+
+    /** Admin cancels any event (spec 8.1): same transition, refunds and emails as the organizer's cancel. */
+    @Transactional
+    public EventResponse adminCancel(UUID adminId, UUID eventId, String reason) {
+        return doCancel(find(eventId), adminId, reason, true);
+    }
+
+    private EventResponse doCancel(Event e, UUID actorId, String reason, boolean byAdmin) {
         if (!CANCELLABLE.contains(e.getStatus())) {
             throw new ApiException(ErrorCode.INVALID_STATE, "This event can no longer be cancelled.");
         }
+        UUID eventId = e.getId();
         EventStatus before = e.getStatus();
         e.setStatus(EventStatus.CANCELLED);
         e.setFeatured(false);
-        audit.record(actorId, "EVENT_CANCELLED", "event", eventId.toString(), Map.of("status", before.name()),
-                Map.of("status", EventStatus.CANCELLED.name(), "reason", reason));
+        Map<String, Object> after = new java.util.LinkedHashMap<>();
+        after.put("status", EventStatus.CANCELLED.name());
+        after.put("reason", reason);
+        if (byAdmin) {
+            after.put("byAdmin", true);
+        }
+        audit.record(actorId, "EVENT_CANCELLED", "event", eventId.toString(), Map.of("status", before.name()), after);
         if (before == EventStatus.PUBLISHED) {
             cancellationHandlers.forEach(h -> h.onEventCancelled(eventId, actorId));
         }
@@ -81,8 +96,12 @@ public class EventLifecycleService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<AdminEventSummary> adminList(EventStatus status, Pageable pageable) {
-        return PageResponse.of(repository.findByStatus(status, pageable), AdminEventSummary::from);
+    public PageResponse<AdminEventSummary> adminList(EventStatus status, String q, Pageable pageable) {
+        if (q == null || q.isBlank()) {
+            return PageResponse.of(repository.findByStatus(status, pageable), AdminEventSummary::from);
+        }
+        return PageResponse.of(repository.searchByStatus(status, com.stagepass.common.text.LikePatterns.contains(q), pageable),
+                AdminEventSummary::from);
     }
 
     @Transactional(readOnly = true)

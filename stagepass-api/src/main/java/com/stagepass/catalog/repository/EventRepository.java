@@ -23,6 +23,14 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     Page<Event> findByStatus(EventStatus status, Pageable pageable);
 
+    /** Admin search: {@code q} is a lower-case, escaped LIKE pattern matched on title or organizer name. */
+    @Query("""
+            select e from Event e
+            where e.status = :status
+              and (lower(e.title) like :q escape '\\' or lower(e.organizer.orgName) like :q escape '\\')
+            """)
+    Page<Event> searchByStatus(@Param("status") EventStatus status, @Param("q") String q, Pageable pageable);
+
     java.util.List<Event> findByVenueIdAndStatus(UUID venueId, EventStatus status);
 
     @Query(value = "select exists (select 1 from bookings where event_id = :eventId)", nativeQuery = true)

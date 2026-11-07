@@ -35,7 +35,7 @@ public class ScanAccess {
         linkPendingInvites(userId);
         List<ScannableEvent> found = sql.query("""
                 select e.id, e.organizer_id, e.title, e.status, e.ends_at,
-                       (o.user_id = :user and o.status = 'APPROVED') as owner,
+                       (o.user_id = :user and o.status in ('APPROVED', 'SUSPENDED')) as owner,
                        exists (select 1 from event_staff s
                                where s.organizer_id = e.organizer_id and s.status = 'ACTIVE' and s.user_id = :user
                                  and (s.event_id = e.id or s.event_id is null)) as staff

@@ -41,11 +41,11 @@ public class ScannerEventsController {
         List<ScannerEvent> events = sql.query("""
                 select e.id, e.title, e.starts_at, e.ends_at, o.org_name,
                        case when e.is_online or v.id is null then 'Online' else v.name || ', ' || v.city end as venue,
-                       (o.user_id = :user and o.status = 'APPROVED') as owner
+                       (o.user_id = :user and o.status in ('APPROVED', 'SUSPENDED')) as owner
                 from events e
                 join organizers o on o.id = e.organizer_id
                 left join venues v on v.id = e.venue_id
-                where ((o.user_id = :user and o.status = 'APPROVED')
+                where ((o.user_id = :user and o.status in ('APPROVED', 'SUSPENDED'))
                        or exists (select 1 from event_staff s
                                   where s.organizer_id = e.organizer_id and s.status = 'ACTIVE' and s.user_id = :user
                                     and (s.event_id = e.id or s.event_id is null)))
