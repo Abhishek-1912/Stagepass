@@ -16,6 +16,8 @@ import { BookingDetailPage } from '@/features/bookings/BookingDetailPage'
 import { MyBookingsPage } from '@/features/bookings/MyBookingsPage'
 import { TicketViewPage } from '@/features/bookings/TicketViewPage'
 import { CheckoutPage, ResumeCheckoutPage } from '@/features/checkout/CheckoutPage'
+import { ScannerHomePage } from '@/features/checkin/ScannerHomePage'
+import { ScannerPage } from '@/features/checkin/ScannerPage'
 import { ExplorePage } from '@/features/discovery/ExplorePage'
 import { EventPage } from '@/features/event/EventPage'
 import { HomePage } from '@/features/home/HomePage'
@@ -27,6 +29,7 @@ import { OrganizerLayout } from '@/features/organizer/OrganizerLayout'
 import { EventEditorPage } from '@/features/organizer/events/EventEditorPage'
 import { EventManagePage } from '@/features/organizer/manage/EventManagePage'
 import { PayoutsPage } from '@/features/organizer/payouts/PayoutsPage'
+import { StaffPage } from '@/features/organizer/staff/StaffPage'
 import { OrganizationSettingsPage } from '@/features/organizer/settings/OrganizationSettingsPage'
 import { EventsListPage } from '@/features/organizer/events/EventsListPage'
 import { VenuesPage } from '@/features/organizer/venues/VenuesPage'
@@ -36,6 +39,22 @@ export const router = createBrowserRouter([
   { path: '/register', element: <RegisterPage /> },
   { path: '/forgot-password', element: <ForgotPasswordPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  {
+    path: '/scan',
+    element: (
+      <RequireAuth>
+        <ScannerHomePage />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/scan/:eventId',
+    element: (
+      <RequireAuth>
+        <ScannerPage />
+      </RequireAuth>
+    ),
+  },
   {
     path: '/organizer',
     element: (
@@ -50,6 +69,7 @@ export const router = createBrowserRouter([
       { path: 'events/:id/manage', element: <EventManagePage /> },
       { path: 'events/:id/:step?', element: <EventEditorPage /> },
       { path: 'venues', element: <VenuesPage /> },
+      { path: 'staff', element: <StaffPage /> },
       { path: 'payouts', element: <PayoutsPage /> },
       { path: 'settings', element: <OrganizationSettingsPage /> },
     ],

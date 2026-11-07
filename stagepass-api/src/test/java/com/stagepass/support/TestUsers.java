@@ -35,6 +35,13 @@ public class TestUsers {
         return new TestUser(id, email, TestJwt.token(id, email), null);
     }
 
+    /** A signed-up user with a chosen email (e.g. someone who was invited before they had an account). */
+    public TestUser attendeeWithEmail(String email) {
+        UUID id = UUID.randomUUID();
+        provisioning.provision(id, email, "Door Person", null);
+        return new TestUser(id, email, TestJwt.token(id, email), null);
+    }
+
     public TestUser admin() {
         TestUser user = attendee();
         grant(user.id(), "ADMIN");

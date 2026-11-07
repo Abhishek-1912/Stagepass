@@ -17,6 +17,14 @@ const organizer = vi.hoisted(() => ({ useOrganizerEvent: vi.fn() }))
 vi.mock('../api', () => organizer)
 vi.mock('@/features/bookings/downloads', () => ({ downloadFile: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+vi.mock('@/features/checkin/api', () => ({
+  useCheckInStats: () => ({ data: { checkedIn: 1, total: 3, byGate: [], byScanner: [], lastScanAt: null }, isPending: false }),
+  useGates: () => ({ data: [], isPending: false }),
+  useCreateGate: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateGate: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteGate: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useScanLog: () => ({ data: { items: [], page: 0, size: 20, totalItems: 0, totalPages: 0 }, isPending: false }),
+}))
 
 import { EventManagePage } from './EventManagePage'
 
@@ -76,8 +84,8 @@ test('tabs follow the URL', async () => {
   expect(screen.getByText(/no refund requests/i)).toBeInTheDocument()
 })
 
-test('check-in tab shows progress and the scanner is coming', () => {
+test('check-in tab shows progress and opens the scanner for this event', () => {
   renderAt('?tab=checkin')
   expect(screen.getByText('1 of 3 checked in')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /open scanner/i })).toBeDisabled()
+  expect(screen.getByRole('link', { name: /open scanner/i })).toHaveAttribute('href', '/scan/e1')
 })

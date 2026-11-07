@@ -99,6 +99,11 @@ Tickets: each live ticket shows a signed QR (`QR_SECRET`) in My tickets, with a 
 ticket PDF and the GST invoice PDF download from the booking page. Booking, refund and event-change emails are queued
 in `email_outbox` (one per event, deduplicated) and the confirmation email carries the ticket PDF.
 
+Check-in: the door scanner lives at `/scan` (camera needs HTTPS or `localhost`; on a phone in development, open the
+site through an HTTPS tunnel). Organizers add door staff by email under Organizer → Door staff; staff sign in with
+that email (email code, no password) and see only the events they were added to. Gates are optional, per event, in
+the event's Manage → Check-in tab.
+
 ## Test accounts
 
 Create these in Supabase → Authentication → Users → Add user, with **Auto Confirm User** ticked:

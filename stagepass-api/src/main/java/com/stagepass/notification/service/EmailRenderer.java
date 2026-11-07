@@ -32,6 +32,7 @@ public class EmailRenderer {
             case REFUND_DECLINED -> refundDeclined(data);
             case EVENT_CANCELLED -> eventCancelled(data);
             case EVENT_CHANGED -> eventChanged(data);
+            case STAFF_INVITED -> staffInvited(data);
         };
     }
 
@@ -229,6 +230,16 @@ public class EmailRenderer {
                         + "new details below.",
                 until == null ? null : "Can't make it now? You can cancel for a full refund, fees included, until " + until + ".",
                 eventDetails(data), "View booking", bookingUrl(data));
+    }
+
+    private RenderedEmail staffInvited(Map<String, ?> data) {
+        String org = str(data.get("organizerName"), "An organizer");
+        String event = str(data.get("eventTitle"), null);
+        return build("You're on the door team for " + org, "Hello",
+                org + " added you as door staff for " + (event == null ? "all their events" : event)
+                        + ". Sign in to Stagepass with this email address and open the scanner on your phone to check guests in.",
+                "Door staff can scan tickets only - you won't see sales or attendee lists.", "Open the scanner",
+                webBaseUrl + "/scan");
     }
 
     private static String when(Object iso) {
