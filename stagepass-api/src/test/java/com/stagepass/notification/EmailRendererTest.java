@@ -137,6 +137,16 @@ class EmailRendererTest {
     }
 
     @Test
+    void payoutRecordedNamesAmountAndReference() {
+        RenderedEmail email = renderer.render(EmailTemplate.PAYOUT_RECORDED,
+                Map.of("orgName", "Acme <Events>", "amountPaise", 1234500L, "reference", "UTR998877", "paidOn", "2026-12-03"));
+
+        assertThat(email.subject()).isEqualTo("Stagepass payout of Rs. 12,345.00 sent");
+        assertThat(email.text()).contains("UTR998877").contains("03 Dec 2026");
+        assertThat(email.html()).contains("Acme &lt;Events&gt;").contains("https://stagepass.example/organizer/payouts");
+    }
+
+    @Test
     void templatesEscapeHtml() {
         RenderedEmail email = renderer.render(EmailTemplate.BOOKING_EXPIRED, booking(Map.of("title", "<b>x</b>")));
         assertThat(email.html()).contains("&lt;b&gt;x&lt;/b&gt;").doesNotContain("<b>x</b>");

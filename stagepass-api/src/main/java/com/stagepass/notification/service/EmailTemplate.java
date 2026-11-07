@@ -13,5 +13,6 @@ public enum EmailTemplate {
     REFUND_DECLINED,
     EVENT_CANCELLED,
     EVENT_CHANGED,
-    STAFF_INVITED
+    STAFF_INVITED,
+    PAYOUT_RECORDED
 }
