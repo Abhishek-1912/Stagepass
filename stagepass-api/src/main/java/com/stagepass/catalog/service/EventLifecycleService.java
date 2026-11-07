@@ -13,6 +13,7 @@ import com.stagepass.common.error.ErrorCode;
 import com.stagepass.common.error.FieldErrors;
 import com.stagepass.notification.service.EmailOutbox;
 import com.stagepass.notification.service.EmailTemplate;
+import com.stagepass.notification.service.NotificationService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,9 +38,11 @@ public class EventLifecycleService {
     private final AuditLogService audit;
     private final EmailOutbox outbox;
     private final List<EventCancellationHandler> cancellationHandlers;
+    private final NotificationService notifications;
 
     public EventLifecycleService(EventService events, EventRepository repository, AuditLogService audit,
-            EmailOutbox outbox, List<EventCancellationHandler> cancellationHandlers) {
+            EmailOutbox outbox, List<EventCancellationHandler> cancellationHandlers, NotificationService notifications) {
+        this.notifications = notifications;
         this.cancellationHandlers = cancellationHandlers;
         this.events = events;
         this.repository = repository;
@@ -126,6 +129,7 @@ public class EventLifecycleService {
                 Map.of("status", "PUBLISHED"));
         outbox.enqueue(e.getOrganizer().getContactEmail(), EmailTemplate.EVENT_APPROVED,
                 Map.of("title", e.getTitle(), "slug", e.getSlug()));
+        decision(e, "EVENT_APPROVED", e.getTitle() + " is live", "It is now on sale on Stagepass.");
         return EventResponse.from(e);
     }
 
@@ -142,6 +146,7 @@ public class EventLifecycleService {
                 Map.of("status", "REJECTED", "reason", reason));
         outbox.enqueue(e.getOrganizer().getContactEmail(), EmailTemplate.EVENT_REJECTED,
                 Map.of("title", e.getTitle(), "reason", reason, "eventId", eventId.toString()));
+        decision(e, "EVENT_REJECTED", e.getTitle() + " needs changes", "Reason: " + reason);
         return EventResponse.from(e);
     }
 
@@ -168,6 +173,11 @@ public class EventLifecycleService {
                 .addIf(e.isOnline() && (e.getOnlineUrl() == null || e.getOnlineUrl().isBlank()), "onlineUrl",
                         "Add the online event link")
                 .throwIfAny();
+    }
+
+    private void decision(Event e, String type, String title, String body) {
+        notifications.notify(e.getOrganizer().getUserId(), type, title, body, "/organizer/events/" + e.getId(),
+                "event-decision:" + e.getId() + ":" + type + ":" + OffsetDateTime.now().toEpochSecond());
     }
 
     private Event find(UUID eventId) {

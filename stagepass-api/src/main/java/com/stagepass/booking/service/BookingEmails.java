@@ -11,6 +11,7 @@ import com.stagepass.catalog.repository.EventRepository;
 import com.stagepass.catalog.repository.TicketTypeRepository;
 import com.stagepass.notification.service.EmailOutbox;
 import com.stagepass.notification.service.EmailTemplate;
+import com.stagepass.notification.service.NotificationService;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -32,8 +33,11 @@ public class BookingEmails {
     private final EventRepository events;
     private final BookingRepository bookings;
     private final TicketTypeRepository types;
+    private final NotificationService notifications;
 
-    public BookingEmails(EmailOutbox outbox, EventRepository events, BookingRepository bookings, TicketTypeRepository types) {
+    public BookingEmails(EmailOutbox outbox, EventRepository events, BookingRepository bookings, TicketTypeRepository types,
+            NotificationService notifications) {
+        this.notifications = notifications;
         this.outbox = outbox;
         this.events = events;
         this.bookings = bookings;
@@ -54,6 +58,9 @@ public class BookingEmails {
             data.put("invoiceNumber", invoiceNumber);
         }
         send(b, EmailTemplate.BOOKING_CONFIRMED, data, "booking-confirmed:" + b.getId());
+        inApp(b, "BOOKING_CONFIRMED", "Booking confirmed: " + data.get("title"),
+                b.getTickets().size() + (b.getTickets().size() == 1 ? " ticket" : " tickets") + " ready in My bookings.",
+                "booking-confirmed:" + b.getId());
     }
 
     /** The hold ran out before payment (not for replaced checkouts or gateway failures the buyer already saw). */
@@ -69,6 +76,9 @@ public class BookingEmails {
         int count = r.getTicketIds().length;
         data.put("ticketCount", count > 0 ? count : b.getItems().stream().mapToInt(i -> i.getQuantity()).sum());
         send(b, EmailTemplate.REFUND_PROCESSED, data, "refund-processed:" + r.getId());
+        inApp(b, "REFUND_PROCESSED", "Refund of " + rupees(r.getAmountPaise()) + " processed",
+                "For " + data.get("title") + ". It usually reaches your account in 5-7 working days.",
+                "refund-processed:" + r.getId());
     }
 
     public void refundDeclined(Refund r, String note) {
@@ -78,6 +88,9 @@ public class BookingEmails {
             data.put("note", note.strip());
         }
         send(b, EmailTemplate.REFUND_DECLINED, data, "refund-declined:" + r.getId());
+        inApp(b, "REFUND_DECLINED", "Refund request declined",
+                "For " + data.get("title") + (note != null && !note.isBlank() ? ": " + note.strip() : "."),
+                "refund-declined:" + r.getId());
     }
 
     /** The event was cancelled: {@code refundedPaise} is what goes back (0 for an open checkout). */
@@ -86,6 +99,9 @@ public class BookingEmails {
         data.put("refunded", refundedPaise > 0);
         data.put("amountPaise", refundedPaise);
         send(b, EmailTemplate.EVENT_CANCELLED, data, "event-cancelled:" + b.getId());
+        inApp(b, "EVENT_CANCELLED", data.get("title") + " was cancelled",
+                refundedPaise > 0 ? "Your refund of " + rupees(refundedPaise) + " is on its way." : "Sorry - the organizer cancelled it.",
+                "event-cancelled:" + b.getId());
     }
 
     /** Date, time or venue changed: tell every ticket holder, with the end of the full-refund window. */
@@ -99,6 +115,9 @@ public class BookingEmails {
             Map<String, Object> data = base(b, e);
             data.put("refundUntil", e.getRescheduleRefundUntil().toString());
             send(b, EmailTemplate.EVENT_CHANGED, data, "event-changed:" + b.getId() + ":" + window);
+            inApp(b, "EVENT_CHANGED", e.getTitle() + " has a new date or venue",
+                    "Check the new details. You can get a full refund until the change window ends.",
+                    "event-changed:" + b.getId() + ":" + window);
         }
     }
 
@@ -116,6 +135,14 @@ public class BookingEmails {
         m.put("venue", e.isOnline() || e.getVenue() == null ? "Online" : e.getVenue().getName() + ", " + e.getVenue().getCity());
         m.put("attendeeName", b.getAttendeeName());
         return m;
+    }
+
+    private void inApp(Booking b, String type, String title, String body, String dedupeKey) {
+        notifications.notify(b.getUserId(), type, title, body, "/account/bookings/" + b.getId(), dedupeKey);
+    }
+
+    private static String rupees(long paise) {
+        return "Rs. " + java.math.BigDecimal.valueOf(paise, 2).toPlainString();
     }
 
     private void send(Booking b, EmailTemplate template, Map<String, Object> data, String dedupeKey) {
