@@ -59,12 +59,42 @@ test('save button toggles optimistically and rolls back on error', async () => {
 })
 
 test('already saved events show a filled heart and can be removed', async () => {
-  client.api.mockImplementation((path: string) => Promise.resolve(path === '/me/saved/ids' ? ['e1'] : undefined))
+  let saved = ['e1']
+  client.api.mockImplementation((path: string, init?: { method?: string }) => {
+    if (init?.method === 'DELETE') saved = []
+    return Promise.resolve(path === '/me/saved/ids' ? saved : undefined)
+  })
   wrap(<SaveButton eventId="e1" />)
   const button = await screen.findByRole('button', { name: 'Remove from saved' })
   await userEvent.click(button)
   expect(client.api).toHaveBeenCalledWith('/me/saved/e1', { method: 'DELETE' })
   expect(await screen.findByRole('button', { name: 'Save event' })).toBeInTheDocument()
+})
+
+test('a failed save does not undo another event saved meanwhile', async () => {
+  let failA: (e: Error) => void = () => {}
+  client.api.mockImplementation((path: string, init?: { method?: string }) => {
+    if (path === '/me/saved/ids') return Promise.resolve([])
+    if (path === '/me/saved/eA' && init?.method === 'PUT') return new Promise((_, reject) => (failA = reject))
+    return Promise.resolve(undefined)
+  })
+  wrap(
+    <>
+      <div data-testid="a"><SaveButton eventId="eA" /></div>
+      <div data-testid="b"><SaveButton eventId="eB" /></div>
+    </>,
+  )
+  await waitFor(() => expect(client.api).toHaveBeenCalledWith('/me/saved/ids'))
+  const [a, b] = await screen.findAllByRole('button', { name: 'Save event' })
+  await userEvent.click(a)
+  await userEvent.click(b)
+  await waitFor(() => expect(client.api).toHaveBeenCalledWith('/me/saved/eB', { method: 'PUT' }))
+
+  client.api.mockImplementation((path: string) => Promise.resolve(path === '/me/saved/ids' ? ['eB'] : undefined))
+  failA(new Error('gone'))
+
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Save event' })).toHaveLength(1))
+  expect(screen.getByRole('button', { name: 'Remove from saved' })).toBeInTheDocument()
 })
 
 test('signed-out save sends to login with next', async () => {

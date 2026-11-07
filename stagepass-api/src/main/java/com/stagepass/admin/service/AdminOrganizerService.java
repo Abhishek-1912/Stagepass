@@ -83,7 +83,8 @@ public class AdminOrganizerService {
         outbox.enqueue(o.getContactEmail(), EmailTemplate.ORGANIZER_REJECTED,
                 Map.of("orgName", o.getOrgName(), "reason", reason));
         notifications.notify(o.getUserId(), "ORGANIZER_REJECTED", "Update on your organizer application",
-                "Reason: " + reason, "/become-organizer", "organizer-decision:" + o.getId() + ":REJECTED");
+                "Reason: " + reason, "/become-organizer",
+                "organizer-decision:" + o.getId() + ":REJECTED:" + o.getReviewedAt().toInstant().toEpochMilli());
         return OrganizerApplicationResponse.from(o, crypto);
     }
 

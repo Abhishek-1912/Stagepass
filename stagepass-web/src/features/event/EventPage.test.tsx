@@ -8,7 +8,7 @@ const discovery = vi.hoisted(() => ({ usePublicEvent: vi.fn() }))
 vi.mock('@/features/discovery/api', () => discovery)
 vi.mock('./ReportEventLink', () => ({ ReportEventLink: () => null }))
 vi.mock('@/features/engagement/ReviewsSection', () => ({ ReviewsSection: () => <section>reviews</section> }))
-vi.mock('@/features/engagement/SaveButton', () => ({ SaveButton: () => null }))
+vi.mock('@/features/engagement/SaveButton', () => ({ SaveButton: () => <button type="button">Save event</button> }))
 vi.mock('@/features/checkout/api', () => ({ useQuote: () => ({ data: undefined, error: null }) }))
 const maps = vi.hoisted(() => ({ mapsKey: vi.fn(() => undefined as string | undefined) }))
 vi.mock('@/lib/maps', async (orig) => ({ ...(await orig<typeof import('@/lib/maps')>()), mapsKey: maps.mapsKey }))
@@ -45,6 +45,13 @@ test('cancelled event shows banner and no booking', () => {
   expect(screen.getByRole('alert')).toHaveTextContent(/this event has been cancelled/i)
   expect(screen.getAllByRole('button', { name: /event cancelled/i })[0]).toBeDisabled()
   expect(screen.queryByRole('button', { name: /add to calendar/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Save event' })).not.toBeInTheDocument()
+})
+
+test('live events can be saved', () => {
+  discovery.usePublicEvent.mockReturnValue({ data: publicEvent(), isPending: false })
+  renderAt()
+  expect(screen.getByRole('button', { name: 'Save event' })).toBeInTheDocument()
 })
 
 test('map falls back to a Google Maps link without a key', () => {

@@ -97,7 +97,7 @@ export function EventPage() {
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <ShareButton url={shareUrl} title={event.title} className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20" />
-            <SaveButton eventId={event.id} />
+            {event.status === 'PUBLISHED' && !hasEnded(event.endsAt) && <SaveButton eventId={event.id} />}
             {event.status === 'PUBLISHED' && (
               <Button
                 variant="outline"

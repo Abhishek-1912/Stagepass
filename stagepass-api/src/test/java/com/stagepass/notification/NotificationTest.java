@@ -108,6 +108,20 @@ class NotificationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void aSecondRejectionAfterReapplyingAlsoNotifies() throws Exception {
+        TestUser admin = users.admin();
+        TestUser applicant = users.pendingOrganizer();
+        for (String reason : new String[] {"PAN does not match", "Website is not reachable"}) {
+            jdbc.update("update organizers set status = 'PENDING' where id = ?", applicant.organizerId());
+            mvc.perform(post("/api/v1/admin/organizer-applications/" + applicant.organizerId() + "/reject")
+                    .header("Authorization", admin.bearer()).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"reason\":\"" + reason + "\"}")).andExpect(status().isOk());
+        }
+        assertThat(rows(applicant.id(), "ORGANIZER_REJECTED")).extracting(r -> (String) r.get("body"))
+                .containsExactlyInAnyOrder("Reason: PAN does not match", "Reason: Website is not reachable");
+    }
+
+    @Test
     void listUnreadCountAndMarkRead() throws Exception {
         TestUser me = users.attendee();
         notifications.notify(me.id(), "TEST", "First", "one", "/a", "t1-" + UUID.randomUUID());
