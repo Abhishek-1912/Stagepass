@@ -36,6 +36,11 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /** JSON API: nothing may load or frame it. */
+    static final String API_CSP = "default-src 'none'; frame-ancestors 'none'";
+    /** The share page only shows a preview image and redirects with a meta refresh (no script). */
+    static final String SHARE_PAGE_CSP = "default-src 'none'; img-src https:; style-src 'unsafe-inline'; frame-ancestors 'none'";
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemAuthEntryPoint entryPoint,
             ProblemAccessDeniedHandler accessDeniedHandler, StagepassAuthenticationConverter converter,
@@ -44,6 +49,14 @@ public class SecurityConfig {
             throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .cors(cors -> { })
+                .headers(h -> h
+                        .frameOptions(f -> f.deny())
+                        .referrerPolicy(r -> r.policy(org.springframework.security.web.header.writers
+                                .ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .addHeaderWriter(new org.springframework.security.web.header.writers.StaticHeadersWriter(
+                                "Permissions-Policy", "camera=(), microphone=(), geolocation=()"))
+                        .addHeaderWriter((request, response) -> response.setHeader("Content-Security-Policy",
+                                request.getRequestURI().startsWith(request.getContextPath() + "/e/") ? SHARE_PAGE_CSP : API_CSP)))
                 .httpBasic(b -> b.disable())
                 .formLogin(f -> f.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
