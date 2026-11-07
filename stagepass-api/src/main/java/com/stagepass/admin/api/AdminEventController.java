@@ -33,10 +33,16 @@ public class AdminEventController {
 
     @GetMapping
     public PageResponse<AdminEventSummary> list(@RequestParam(defaultValue = "PENDING_REVIEW") EventStatus status,
-            @RequestParam(required = false) Integer page, @RequestParam(required = false) Integer size) {
+            @RequestParam(required = false) String q, @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
         Sort sort = status == EventStatus.PENDING_REVIEW ? Sort.by("submittedAt").ascending()
                 : Sort.by("startsAt").ascending();
-        return lifecycle.adminList(status, PageRequests.of(page, size, sort));
+        return lifecycle.adminList(status, q, PageRequests.of(page, size, sort));
+    }
+
+    @PostMapping("/{id}/cancel")
+    public EventResponse cancel(@PathVariable UUID id, @Valid @RequestBody SuspendRequest request) {
+        return lifecycle.adminCancel(currentUser.id(), id, request.reason().strip());
     }
 
     @GetMapping("/{id}")

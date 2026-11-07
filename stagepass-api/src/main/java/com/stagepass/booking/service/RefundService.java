@@ -176,6 +176,37 @@ public class RefundService {
         return view(organizerId, eventId, refundId);
     }
 
+    // ---------------------------------------------------------------- admin
+
+    /**
+     * Admin refunds the chosen tickets (or every live, unclaimed one) whatever the event's policy, returning the
+     * convenience fee when {@code includeFee}. Same apply/submit path as an organizer approval.
+     */
+    public BookingResponse adminRefund(UUID adminId, UUID bookingId, List<UUID> ticketIds, boolean includeFee,
+            String reason) {
+        UUID refundId = tx.execute(s -> {
+            Booking b = lockRefundable(bookingId);
+            List<Ticket> chosen = pick(b, ticketIds == null ? List.of() : ticketIds);
+            Refund r = apply(b, chosen, RefundKind.ADMIN, includeFee, null, adminId, reason, null);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("refundId", r.getId().toString());
+            details.put("byAdmin", true);
+            details.put("includeFee", includeFee);
+            details.put("tickets", chosen.size());
+            details.put("reason", reason);
+            audit.record(adminId, "REFUND_ISSUED", "booking", b.getId().toString(), null, details);
+            return r.getId();
+        });
+        if (submit(refundId) == RefundStatus.FAILED) {
+            // After a refusal the tickets are either restored or stay refunded with the refund queued for retry.
+            boolean queued = Boolean.TRUE.equals(tx.execute(s -> refunds.findById(refundId).map(Refund::isNeedsRetry).orElse(false)));
+            throw new ApiException(ErrorCode.SERVICE_UNAVAILABLE, queued
+                    ? "Razorpay refused the refund. The tickets stay refunded and the refund is queued for retry - see Transactions > Refunds."
+                    : "The refund could not be started with the payment gateway. The tickets are unchanged - please try again.");
+        }
+        return bookingService.view(bookingId);
+    }
+
     // ---------------------------------------------------------------- event cancellation
 
     /**

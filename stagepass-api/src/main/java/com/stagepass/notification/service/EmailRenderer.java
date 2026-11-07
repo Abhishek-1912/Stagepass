@@ -33,6 +33,7 @@ public class EmailRenderer {
             case EVENT_CANCELLED -> eventCancelled(data);
             case EVENT_CHANGED -> eventChanged(data);
             case STAFF_INVITED -> staffInvited(data);
+            case PAYOUT_RECORDED -> payoutRecorded(data);
         };
     }
 
@@ -240,6 +241,19 @@ public class EmailRenderer {
                         + ". Sign in to Stagepass with this email address and open the scanner on your phone to check guests in.",
                 "Door staff can scan tickets only - you won't see sales or attendee lists.", "Open the scanner",
                 webBaseUrl + "/scan");
+    }
+
+    private RenderedEmail payoutRecorded(Map<String, ?> data) {
+        String amount = rupees(num(data.get("amountPaise")));
+        String reference = str(data.get("reference"), "-");
+        String paidOn = data.get("paidOn") instanceof String s
+                ? java.time.LocalDate.parse(s).format(java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", java.util.Locale.ENGLISH))
+                : null;
+        return build("Stagepass payout of " + amount + " sent", "Hello " + str(data.get("orgName"), "there"),
+                "We've sent a payout of " + amount + " to your registered bank account"
+                        + (paidOn == null ? "" : " on " + paidOn) + ". Bank reference (UTR): " + reference + ".",
+                "It can take a working day to show in your account. Your payouts page lists every payout.",
+                "View payouts", webBaseUrl + "/organizer/payouts");
     }
 
     private static String when(Object iso) {
