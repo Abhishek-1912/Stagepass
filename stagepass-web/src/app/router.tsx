@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router'
 import { PublicLayout } from '@/components/layout/PublicLayout'
-import { AccountPlaceholderPage } from '@/features/account/AccountPlaceholderPage'
+import { AccountPage } from '@/features/account/AccountPage'
+import { SavedEventsPage } from '@/features/account/SavedEventsPage'
 import { AdminLayout } from '@/features/admin/AdminLayout'
 import { AdminPayoutsPage } from '@/features/admin/AdminPayoutsPage'
 import { AuditLogPage } from '@/features/admin/AuditLogPage'
@@ -154,7 +155,15 @@ export const router = createBrowserRouter([
         path: 'account',
         element: (
           <RequireAuth>
-            <AccountPlaceholderPage />
+            <AccountPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'account/saved',
+        element: (
+          <RequireAuth>
+            <SavedEventsPage />
           </RequireAuth>
         ),
       },

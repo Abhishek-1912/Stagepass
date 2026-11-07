@@ -2,7 +2,9 @@ import { NavLink } from 'react-router'
 import { ThemeToggle } from '@/app/theme/ThemeToggle'
 import { Logo } from '@/components/brand/Logo'
 import { cn } from '@/lib/utils'
+import { useOptionalAuth } from '@/features/auth/AuthProvider'
 import { HeaderAccount } from './HeaderAccount'
+import { NotificationBell } from './NotificationBell'
 
 const links = [
   { to: '/explore', label: 'Explore' },
@@ -10,6 +12,7 @@ const links = [
 ]
 
 export function SiteHeader() {
+  const auth = useOptionalAuth()
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
@@ -32,6 +35,7 @@ export function SiteHeader() {
         </nav>
         <div className="ml-auto flex items-center gap-1.5">
           <ThemeToggle />
+          {auth?.session && <NotificationBell />}
           <HeaderAccount />
         </div>
       </div>

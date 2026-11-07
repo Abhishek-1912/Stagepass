@@ -57,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
+/** Like useAuth, but null outside an AuthProvider (for widgets that also render in isolated tests). */
+export function useOptionalAuth() {
+  return useContext(AuthContext)
+}
+
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')

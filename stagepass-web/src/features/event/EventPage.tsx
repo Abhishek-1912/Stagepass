@@ -13,6 +13,7 @@ import { cloudinary } from '@/lib/images'
 import { formatPaise } from '@/lib/money'
 import { downloadIcs } from './calendar'
 import { ReportEventLink } from './ReportEventLink'
+import { SaveButton } from '@/features/engagement/SaveButton'
 import { ShareButton } from './ShareButton'
 import { TicketPicker } from '@/features/checkout/TicketPicker'
 import { bookLabel, canBook } from './bookLabel'
@@ -90,6 +91,7 @@ export function EventPage() {
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <ShareButton url={shareUrl} title={event.title} className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20" />
+            <SaveButton eventId={event.id} />
             {event.status === 'PUBLISHED' && (
               <Button
                 variant="outline"
