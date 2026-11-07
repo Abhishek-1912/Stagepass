@@ -31,11 +31,14 @@ public class UploadController {
         return uploads.signEventImage(guard.requireApprovedOrganizerId(), request.eventId());
     }
 
-    /** Organizer logo: any signed-in user (needed while applying). */
+    /** Organizer logo (needed while applying) or profile photo: any signed-in user, own folder only. */
     @PostMapping("/api/v1/uploads/signature")
     public UploadSignatureResponse logo(@Valid @RequestBody UploadSignatureRequest request) {
+        if (request.purpose() == UploadSignatureRequest.Purpose.AVATAR) {
+            return uploads.signAvatar(currentUser.id());
+        }
         if (request.purpose() != UploadSignatureRequest.Purpose.ORGANIZER_LOGO) {
-            throw FieldErrors.single("purpose", "only ORGANIZER_LOGO is allowed here");
+            throw FieldErrors.single("purpose", "only ORGANIZER_LOGO or AVATAR is allowed here");
         }
         return uploads.signLogo(currentUser.id());
     }
