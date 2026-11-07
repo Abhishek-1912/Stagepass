@@ -12,6 +12,7 @@ import { env } from '@/lib/env'
 import { cloudinary } from '@/lib/images'
 import { formatPaise } from '@/lib/money'
 import { downloadIcs } from './calendar'
+import { ReportEventLink } from './ReportEventLink'
 import { ShareButton } from './ShareButton'
 import { TicketPicker } from '@/features/checkout/TicketPicker'
 import { bookLabel, canBook } from './bookLabel'
@@ -171,6 +172,9 @@ export function EventPage() {
               <p className="whitespace-pre-line text-sm text-muted-foreground">{event.terms}</p>
             </Section>
           )}
+          <div className="border-t border-border pt-4">
+            <ReportEventLink eventId={event.id} />
+          </div>
         </div>
 
         <aside className="hidden lg:block">

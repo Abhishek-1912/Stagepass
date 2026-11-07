@@ -2,12 +2,17 @@ import { createBrowserRouter } from 'react-router'
 import { PublicLayout } from '@/components/layout/PublicLayout'
 import { AccountPlaceholderPage } from '@/features/account/AccountPlaceholderPage'
 import { AdminLayout } from '@/features/admin/AdminLayout'
+import { AdminPayoutsPage } from '@/features/admin/AdminPayoutsPage'
+import { AuditLogPage } from '@/features/admin/AuditLogPage'
 import { CategoriesPage } from '@/features/admin/CategoriesPage'
 import { EventReviewDetail } from '@/features/admin/EventReviewDetail'
 import { EventReviewPage } from '@/features/admin/EventReviewPage'
 import { OrganizerDetailPage } from '@/features/admin/OrganizerDetailPage'
 import { OrganizersPage } from '@/features/admin/OrganizersPage'
 import { OverviewPage } from '@/features/admin/OverviewPage'
+import { ReportsPage } from '@/features/admin/ReportsPage'
+import { SettingsPage } from '@/features/admin/SettingsPage'
+import { TransactionsPage } from '@/features/admin/TransactionsPage'
 import { UsersPage } from '@/features/admin/UsersPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { LoginPage } from '@/features/auth/LoginPage'
@@ -91,6 +96,11 @@ export const router = createBrowserRouter([
       { path: 'events', element: <EventReviewPage /> },
       { path: 'events/:id', element: <EventReviewDetail /> },
       { path: 'categories', element: <CategoriesPage /> },
+      { path: 'transactions', element: <TransactionsPage /> },
+      { path: 'payouts', element: <AdminPayoutsPage /> },
+      { path: 'reports', element: <ReportsPage /> },
+      { path: 'settings', element: <SettingsPage /> },
+      { path: 'audit', element: <AuditLogPage /> },
     ],
   },
   {
