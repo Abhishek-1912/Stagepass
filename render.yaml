@@ -51,6 +51,10 @@ services:
         sync: false
       - key: COMPANY_STATE
         sync: false
+      - key: COMPANY_NAME
+        sync: false
+      - key: COMPANY_ADDRESS
+        sync: false
 
   - type: web
     name: stagepass-web
@@ -74,10 +78,23 @@ services:
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), microphone=(), geolocation=(self)
+      # Report-only at launch (Plan 10 ruling); enforce in Plan 11 once real traffic shows no violations.
+      # The sha256 is the inline theme script in index.html - update it if that script changes.
+      - path: /*
+        name: Content-Security-Policy-Report-Only
+        value: "default-src 'self'; script-src 'self' https://checkout.razorpay.com 'sha256-y2vHlymdvbnX3xnU9AA2EK1iwC37JCRpUw+i1S4kjpk='; connect-src 'self' https://*.onrender.com https://*.supabase.co wss://*.supabase.co https://api.cloudinary.com https://*.razorpay.com; img-src 'self' data: blob: https://res.cloudinary.com https://*.googleusercontent.com; frame-src https://api.razorpay.com https://checkout.razorpay.com https://www.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     envVars:
       - key: VITE_API_BASE_URL
         sync: false
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_GOOGLE_MAPS_KEY
         sync: false
