@@ -11,5 +11,6 @@ public record PublicEventDetail(UUID id, String slug, String title, String summa
         String coverImageUrl, List<String> gallery, OffsetDateTime startsAt, OffsetDateTime endsAt, String timezone,
         String status, boolean online, VenueResponse venue, String categorySlug, String categoryName, String terms,
         Integer maxTicketsPerUser, String refundPolicy, Integer refundCutoffHours, boolean soldOut,
-        Long minPricePaise, List<PublicTicketType> ticketTypes, PublicOrganizer organizer) {
+        Long minPricePaise, List<PublicTicketType> ticketTypes, PublicOrganizer organizer,
+        RatingSummary rating) {
 }

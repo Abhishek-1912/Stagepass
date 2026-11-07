@@ -38,8 +38,11 @@ public class PublicEventService {
     private final JdbcTemplate jdbc;
     private final Clock clock;
 
+    private final com.stagepass.discovery.repository.RatingQueries ratings;
+
     public PublicEventService(EventRepository events, OrganizerRepository organizers, PublicEventQueries queries,
-            JdbcTemplate jdbc, Clock clock) {
+            JdbcTemplate jdbc, Clock clock, com.stagepass.discovery.repository.RatingQueries ratings) {
+        this.ratings = ratings;
         this.events = events;
         this.organizers = organizers;
         this.queries = queries;
@@ -64,7 +67,8 @@ public class PublicEventService {
                 e.getCoverImageUrl(), List.copyOf(e.getGallery()), e.getStartsAt(), e.getEndsAt(), e.getTimezone(),
                 e.getStatus().name(), e.isOnline(), VenueResponse.from(e.getVenue()), e.getCategory().getSlug(),
                 e.getCategory().getName(), e.getTerms(), e.getMaxTicketsPerUser(), e.getRefundPolicy().name(),
-                e.getRefundCutoffHours(), soldOut, minPrice, types, PublicOrganizer.from(e.getOrganizer()));
+                e.getRefundCutoffHours(), soldOut, minPrice, types, PublicOrganizer.from(e.getOrganizer()),
+                ratings.forEvent(e.getId()));
     }
 
     /** For the share page: the visible event or 404. */
@@ -89,6 +93,6 @@ public class PublicEventService {
                 where organizer_id = ? and (status = 'COMPLETED' or (status = 'PUBLISHED' and ends_at <= now()))
                 """, Integer.class, o.getId());
         return new PublicOrganizerProfile(PublicOrganizer.from(o), upcoming.getContent(), upcoming.getTotalElements(),
-                past == null ? 0 : past);
+                past == null ? 0 : past, ratings.forOrganizer(o.getId()));
     }
 }
