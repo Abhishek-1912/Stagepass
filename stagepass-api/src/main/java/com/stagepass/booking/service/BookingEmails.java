@@ -104,6 +104,21 @@ public class BookingEmails {
                 "event-cancelled:" + b.getId());
     }
 
+    /**
+     * The 24-hour reminder: always in-app, by email unless {@code sendEmail} is false. {@code day} is "Today" or
+     * "Tomorrow" in IST; {@code key} carries the start time so a rescheduled event gets a fresh reminder.
+     */
+    public void reminder(Booking b, Event e, String day, String key, boolean sendEmail) {
+        Map<String, Object> data = base(b, e);
+        data.put("day", day);
+        if (sendEmail) {
+            send(b, EmailTemplate.EVENT_REMINDER, data, key);
+        }
+        String time = java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.ENGLISH)
+                .format(e.getStartsAt().atZoneSameInstant(java.time.ZoneId.of("Asia/Kolkata")));
+        inApp(b, "EVENT_REMINDER", day + ": " + e.getTitle(), "Starts at " + time + ". Have your QR ticket ready.", key);
+    }
+
     /** Date, time or venue changed: tell every ticket holder, with the end of the full-refund window. */
     public void eventChanged(Event e) {
         if (e.getRescheduleRefundUntil() == null) {
