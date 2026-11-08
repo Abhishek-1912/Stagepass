@@ -87,7 +87,7 @@ class InvoiceServiceTest extends PostgresIntegrationTest {
     @Test
     void noGstinNoInvoice() {
         InvoiceService unregistered = new InvoiceService(invoiceRepo, jdbc,
-                new CompanyProperties("Stagepass", null, "Telangana", null));
+                new CompanyProperties("Stagepass", null, "Telangana", null, null, null));
         assertThat(issue(unregistered, "2043-06-01T10:00:00+05:30", "Telangana")).isEmpty();
     }
 

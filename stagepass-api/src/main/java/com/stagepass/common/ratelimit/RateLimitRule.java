@@ -18,7 +18,9 @@ public enum RateLimitRule {
     WRITE(Key.USER, 20, 20, List.of("POST /api/v1/events/*/reports", "PUT /api/v1/events/*/review",
             "POST /api/v1/uploads/signature", "POST /api/v1/organizer-applications")),
     /** Signed-in browsing counts per user; anonymous visitors share their IP's larger allowance (campus Wi-Fi, mobile NAT). */
-    PUBLIC(Key.USER, 120, 600, List.of("GET /api/v1/public/**", "POST /api/v1/public/quote"));
+    PUBLIC(Key.USER, 120, 600, List.of("GET /api/v1/public/**", "POST /api/v1/public/quote")),
+    /** Browser CSP violation reports: unauthenticated, so per IP. */
+    CSP_REPORT(Key.IP, 30, 30, List.of("POST /api/v1/csp-reports"));
 
     public enum Key { USER, IP }
 

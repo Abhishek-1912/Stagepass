@@ -55,6 +55,10 @@ services:
         sync: false
       - key: COMPANY_ADDRESS
         sync: false
+      - key: COMPANY_EMAIL
+        sync: false
+      - key: COMPANY_PHONE
+        sync: false
 
   - type: web
     name: stagepass-web
