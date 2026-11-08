@@ -33,7 +33,7 @@ export function RefundsPage() {
             <p>
               We email every ticket holder. If you can no longer attend, you can cancel your tickets for a full refund,
               convenience fee included, for 7 days after we tell you about the change, from <strong>My tickets</strong>.
-              After those 7 days, the event&apos;s normal refund rule applies.
+              After those 7 days (or once the event starts, if that is sooner), the event&apos;s normal refund rule applies.
             </p>
           ),
         },
@@ -44,7 +44,7 @@ export function RefundsPage() {
             <>
               <p>Otherwise, the organizer chooses one of these rules for their event, and the event page shows it:</p>
               <ul>
-                <li><strong>No refunds</strong> — tickets can&apos;t be refunded unless the event is cancelled or changed as above.</li>
+                <li><strong>No refunds</strong> — tickets aren&apos;t refunded unless the organizer approves a request (see below), or the event is cancelled or changed as above.</li>
                 <li><strong>Refunds until a set time</strong> — for example, until 48 hours before the event starts.</li>
               </ul>
             </>
@@ -73,8 +73,13 @@ export function RefundsPage() {
         },
         {
           id: 'used',
-          heading: 'Used tickets',
-          body: <p>Tickets that have been checked in at the event (used tickets) can&apos;t be refunded.</p>,
+          heading: 'Used tickets and after the event starts',
+          body: (
+            <p>
+              Tickets that have been checked in at the event (used tickets) can&apos;t be refunded. Refunds and refund
+              requests close when the event starts.
+            </p>
+          ),
         },
         {
           id: 'timing',

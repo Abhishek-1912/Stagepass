@@ -66,4 +66,19 @@ class CspReportTest extends PostgresIntegrationTest {
         mvc.perform(post("/api/v1/csp-reports").with(from(ip)).contentType("application/csp-report").content("{}"))
                 .andExpect(status().isTooManyRequests());
     }
+
+    @Test
+    void aBigReportArrayLogsAFewLinesNotHundreds(CapturedOutput output) throws Exception {
+        StringBuilder many = new StringBuilder("[");
+        for (int i = 0; i < 100; i++) {
+            many.append(i == 0 ? "" : ",").append("{\"body\":{\"blockedURL\":\"https://x.example/").append(i)
+                    .append("\",\"effectiveDirective\":\"img-src\"}}");
+        }
+        many.append("]");
+        mvc.perform(post("/api/v1/csp-reports").with(from(ip())).contentType("application/reports+json").content(many.toString()))
+                .andExpect(status().isNoContent());
+        long lines = output.getOut().lines().filter(l -> l.contains("CSP violation:")).count();
+        org.assertj.core.api.Assertions.assertThat(lines).isLessThanOrEqualTo(6);
+        org.assertj.core.api.Assertions.assertThat(output.getOut()).contains("and 95 more");
+    }
 }

@@ -25,6 +25,7 @@ public class CspReportController {
     private static final JsonMapper JSON = JsonMapper.builder().build();
     static final int MAX_BYTES = 8 * 1024;
     private static final int MAX_FIELD = 200;
+    private static final int MAX_ENTRIES = 5;
 
     @PostMapping("/api/v1/csp-reports")
     public ResponseEntity<Void> receive(HttpServletRequest request) throws IOException {
@@ -38,7 +39,13 @@ public class CspReportController {
         try {
             JsonNode root = JSON.readTree(new String(body, StandardCharsets.UTF_8));
             if (root != null && root.isArray()) {
-                root.forEach(r -> logReport(r.path("body"), r.path("url").asString("")));
+                // A Reporting API batch can hold hundreds of entries; log the first few so one request stays small.
+                for (int i = 0; i < Math.min(root.size(), MAX_ENTRIES); i++) {
+                    logReport(root.get(i).path("body"), root.get(i).path("url").asString(""));
+                }
+                if (root.size() > MAX_ENTRIES) {
+                    log.warn("CSP violation: and {} more in the same report", root.size() - MAX_ENTRIES);
+                }
             } else if (root != null && root.has("csp-report")) {
                 JsonNode r = root.get("csp-report");
                 logReport(r, r.path("document-uri").asString(""));

@@ -59,6 +59,8 @@ test('refund page states the real rules', () => {
   expect(text).toMatch(/convenience fee/i)
   expect(text).toContain('5–7 working days')
   expect(text).toMatch(/checked in|used tickets/i)
+  expect(text).toMatch(/refunds and refund requests close when the event starts/i)
+  expect(text).toMatch(/unless the organizer approves/i)
 })
 
 test('privacy page names every processor', () => {

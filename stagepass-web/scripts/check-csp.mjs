@@ -28,7 +28,9 @@ const csp = webCsp(readFileSync(path.join(root, '..', 'render.yaml'), 'utf8'))
 if (!csp) problems.push('render.yaml: no Content-Security-Policy header for stagepass-web')
 else {
   if (csp.header !== 'Content-Security-Policy') problems.push(`render.yaml: the header is ${csp.header}; it must be the enforced Content-Security-Policy`)
-  for (const needed of ['report-uri ', 'https://images.unsplash.com', "object-src 'none'", "frame-ancestors 'none'"]) {
+  // Google Maps (venue search + embeds) loads when VITE_GOOGLE_MAPS_KEY is set; keep its hosts allowed.
+  const mapsHosts = ['https://maps.googleapis.com', 'https://places.googleapis.com', 'https://maps.gstatic.com', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com']
+  for (const needed of ['report-uri ', 'https://images.unsplash.com', "object-src 'none'", "frame-ancestors 'none'", ...mapsHosts]) {
     if (!csp.value.includes(needed)) problems.push(`render.yaml CSP is missing ${needed.trim()}`)
   }
   const html = readFileSync(path.join(dist, 'index.html'), 'utf8')
