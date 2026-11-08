@@ -6,7 +6,8 @@ import path from 'node:path'
  * where the real API host would be, and report-uri is dropped (there is no report collector in the test).
  */
 export function testCsp(): string {
-  const yaml = readFileSync(path.resolve(__dirname, '..', '..', '..', 'render.yaml'), 'utf8').split(/\r?\n/)
+  // Playwright runs from stagepass-web (npm run test:e2e); render.yaml is at the repo root.
+  const yaml = readFileSync(path.resolve(process.cwd(), '..', 'render.yaml'), 'utf8').split(/\r?\n/)
   let inWeb = false
   for (let i = 0; i < yaml.length; i++) {
     if (yaml[i].startsWith('  - type:')) inWeb = false
