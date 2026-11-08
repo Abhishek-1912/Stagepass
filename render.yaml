@@ -1,4 +1,4 @@
-# Render Blueprint for Stagepass (Singapore region). Secrets use `sync: false`:
+# Render Blueprint for Stagepass (API in Singapore; the static site is served from Render's global CDN). Secrets use `sync: false`:
 # Render asks for their values when the blueprint is first applied; they are never stored in git.
 services:
   - type: web
@@ -59,7 +59,6 @@ services:
   - type: web
     name: stagepass-web
     runtime: static
-    region: singapore
     rootDir: stagepass-web
     buildCommand: npm ci && npm run build
     staticPublishPath: dist

@@ -84,4 +84,22 @@ class RenderBlueprintTest {
         assertThat(serviceEnv("stagepass-api")).containsKeys("COMPANY_NAME", "COMPANY_ADDRESS");
         assertThat(serviceEnv("stagepass-web")).containsKey("VITE_GOOGLE_MAPS_KEY");
     }
+
+    /** Render rejects a blueprint whose static site has a region ("static sites cannot have a region"). */
+    @Test
+    void staticSiteHasNoRegion() throws IOException {
+        List<String> lines = Files.readAllLines(BLUEPRINT);
+        boolean inWeb = false;
+        for (String raw : lines) {
+            if (raw.startsWith("  - type:")) {
+                inWeb = false;
+            }
+            if (raw.strip().equals("name: stagepass-web")) {
+                inWeb = true;
+            }
+            if (inWeb) {
+                assertThat(raw.strip()).as("stagepass-web is a static site").doesNotStartWith("region:");
+            }
+        }
+    }
 }
