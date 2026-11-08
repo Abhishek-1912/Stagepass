@@ -140,7 +140,18 @@ Do these in order on `<web>`; each should work without errors.
 If any step fails, note the step number and what you saw, and share the API logs from Render (*stagepass-api →
 Logs*) with your developer. The logs are JSON lines; they never contain passwords or keys.
 
-## 8. Updating
+## 8. Website security policy (CSP)
+
+The website sends an enforced Content-Security-Policy (set in `render.yaml`). It blocks scripts, frames and images
+from anywhere not listed, which protects visitors if something malicious ever got onto a page. If the browser blocks
+something, it reports it to the API, and the API logs a line starting `CSP violation:` — search for that in
+*stagepass-api → Logs*.
+
+- If the API's address changes, update the `report-uri` at the end of the policy in `render.yaml`.
+- **Before turning on live payments:** make one test payment on the live site, then check the API logs for
+  `CSP violation:` lines. Razorpay Checkout loads from `*.razorpay.com`, which the policy allows, but check once.
+
+## 9. Updating
 
 Every push to `main` deploys both services automatically (`autoDeploy: true`). Database migrations run on API
 start. If a deploy fails, Render keeps the previous version running.

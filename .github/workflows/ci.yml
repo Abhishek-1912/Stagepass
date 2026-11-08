@@ -57,6 +57,7 @@ jobs:
       - run: npx vitest run
       - run: npm run build
       - run: npm run check:bundle
+      - run: npm run check:csp
       - name: Playwright smoke tests
         run: |
           npx playwright install --with-deps chromium

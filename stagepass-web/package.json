@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "test:e2e": "playwright test",
+    "check:csp": "node scripts/check-csp.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
