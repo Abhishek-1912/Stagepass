@@ -94,7 +94,7 @@ Two values you create yourself, once, and keep in your password manager:
    commit** (the web site must be rebuilt for a `VITE_` change).
 6. Now do step 2.3 (Supabase Auth URLs).
 
-The API uses the **Starter** plan on purpose: free instances sleep, which delays Razorpay webhooks and first loads.
+The API starts on Render's **Free** plan while payments are off: it sleeps after 15 minutes without visitors, and the next visit waits about a minute while it wakes. Before turning on Razorpay, switch it to **Starter** (*stagepass-api → Settings → Instance Type*, or `plan: starter` in `render.yaml`): a sleeping server delays payment webhooks.
 
 ## 4. Check the API is up
 

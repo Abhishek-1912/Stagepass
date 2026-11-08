@@ -5,7 +5,7 @@ services:
     name: stagepass-api
     runtime: docker
     region: singapore
-    plan: starter # free instances sleep, which would delay Razorpay webhooks
+    plan: free # testing without Razorpay; switch to starter before payments go live (free instances sleep when idle, delaying webhooks)
     rootDir: stagepass-api
     dockerfilePath: ./Dockerfile
     healthCheckPath: /actuator/health
