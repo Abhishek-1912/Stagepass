@@ -151,6 +151,12 @@ cd stagepass-web && npx vitest run && npm run lint && npm run build
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon/publishable key |
 
+## Legal pages
+
+About, Terms, Privacy and Refunds live at `/about` and `/legal/*` (`stagepass-web/src/features/legal`). They show
+the company details from the API's `COMPANY_*` settings. Have them checked before live payments — see
+[docs/legal-review.md](docs/legal-review.md).
+
 ## Deploy (Render)
 
 The full step-by-step guide, with every setting and a first-deploy checklist, is **[docs/deploy.md](docs/deploy.md)**.

@@ -9,9 +9,10 @@
     },
     {
       "name": "stagepass-api",
-      "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd stagepass-api && ./mvnw -q spring-boot:run"],
-      "port": 8080
+      "runtimeExecutable": "stagepass-api\\mvnw.cmd",
+      "runtimeArgs": ["-q", "-f", "stagepass-api/pom.xml", "spring-boot:run"],
+      "port": 8080,
+      "autoPort": false
     }
   ]
 }

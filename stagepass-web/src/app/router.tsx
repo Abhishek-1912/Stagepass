@@ -45,6 +45,11 @@ const OrganizationSettingsPage = lazyPage(() => import('@/features/organizer/set
 const EventsListPage = lazyPage(() => import('@/features/organizer/events/EventsListPage').then((m) => m.EventsListPage))
 const VenuesPage = lazyPage(() => import('@/features/organizer/venues/VenuesPage').then((m) => m.VenuesPage))
 
+const AboutPage = lazyPage(() => import('@/features/legal/AboutPage').then((m) => m.AboutPage))
+const TermsPage = lazyPage(() => import('@/features/legal/TermsPage').then((m) => m.TermsPage))
+const PrivacyPage = lazyPage(() => import('@/features/legal/PrivacyPage').then((m) => m.PrivacyPage))
+const RefundsPage = lazyPage(() => import('@/features/legal/RefundsPage').then((m) => m.RefundsPage))
+
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
@@ -112,6 +117,10 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: 'explore', element: <ExplorePage /> },
+      { path: 'about', element: <AboutPage /> },
+      { path: 'legal/terms', element: <TermsPage /> },
+      { path: 'legal/privacy', element: <PrivacyPage /> },
+      { path: 'legal/refunds', element: <RefundsPage /> },
       { path: 'events/:slug', element: <EventPage /> },
       { path: 'o/:slug', element: <OrganizerProfilePage /> },
       {

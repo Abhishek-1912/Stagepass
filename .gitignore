@@ -12,3 +12,4 @@ stagepass-api/src/main/resources/application-local.properties
 # Playwright
 stagepass-web/playwright-report/
 stagepass-web/test-results/
+stagepass-web/dist-e2e/
